@@ -64,6 +64,15 @@ task_local! {
     static MY_CHANNEL: LocalChannel = LocalChannel::new()
 }
 
+// Warning: the Deserialize implementation should be implemented
+// in such a way that it fails if anything looks fishy in the message.
+// #[serde(deny_unknown_fields)] is a bare minimum, and it's recommended
+// to include a struct name and maybe even version field in the serialized
+// data.
+pub trait Message: 'static + Send + Serialize + for<'a> Deserialize<'a> {}
+
+pub enum Void {}
+
 pub struct Pid {
     // TODO: (A) Cross-process / over-the-network messages
     actor_id: ActorId,
@@ -75,19 +84,10 @@ impl Pid {
             actor_id: MY_CHANNEL.with(|c| c.actor_id),
         }
     }
-}
 
-// Warning: the Deserialize implementation should be implemented
-// in such a way that it fails if anything looks fishy in the message.
-// #[serde(deny_unknown_fields)] is a bare minimum, and it's recommended
-// to include a struct name and maybe even version field in the serialized
-// data.
-pub trait Message: 'static + Send + Serialize + for<'a> Deserialize<'a> {}
-
-pub enum Void {}
-
-pub fn send<M: Message>(_to: Pid, _msg: M) -> impl Future<Item = (), Error = Void> {
-    future::ok(()) // TODO: (A) implement
+    pub fn send<M: Message>(&self, msg: M) -> impl Future<Item = (), Error = Void> {
+        future::ok(()) // TODO: (A) implement
+    }
 }
 
 pub fn receive(_wanted: &Fn(&Send) -> bool) -> impl Future<Item = Box<Send + 'static>, Error = Void> {
