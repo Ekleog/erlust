@@ -14,23 +14,24 @@ use std::{collections::HashMap, sync::RwLock};
 const QUEUE_BUFFER: usize = 64; // TODO: (C) fiddle
 
 type ActorId = usize;
-type Sender = mpsc::Sender<Box<Send>>;
-type Receiver = mpsc::Receiver<Box<Send>>;
+type LocalMessage = Box<Send + 'static>;
+type LocalSender = mpsc::Sender<LocalMessage>;
+type LocalReceiver = mpsc::Receiver<LocalMessage>;
 
-struct Senders {
+struct LocalSenders {
     next_actor_id: ActorId,
-    map: HashMap<ActorId, Sender>,
+    map: HashMap<ActorId, LocalSender>,
 }
 
-impl Senders {
-    fn new() -> Senders {
-        Senders {
+impl LocalSenders {
+    fn new() -> LocalSenders {
+        LocalSenders {
             next_actor_id: 0,
             map: HashMap::new(),
         }
     }
 
-    fn allocate(&mut self, sender: Sender) -> ActorId {
+    fn allocate(&mut self, sender: LocalSender) -> ActorId {
         let actor_id = self.next_actor_id;
         // TODO: (C) try to handle gracefully the overflow case
         self.next_actor_id = self.next_actor_id.checked_add(1).unwrap();
@@ -38,25 +39,25 @@ impl Senders {
         actor_id
     }
 
-    fn get(&self, actor_id: ActorId) -> Option<Sender> {
+    fn get(&self, actor_id: ActorId) -> Option<LocalSender> {
         self.map.get(&actor_id).map(|s| s.clone())
     }
 }
 
 lazy_static! {
-    static ref SENDERS: RwLock<Senders> = RwLock::new(Senders::new());
+    static ref LOCAL_SENDERS: RwLock<LocalSenders> = RwLock::new(LocalSenders::new());
 }
 
 struct LocalChannel {
     actor_id: ActorId,
-    receiver: Receiver,
+    receiver: LocalReceiver,
 }
 
 impl LocalChannel {
     fn new() -> LocalChannel {
         let (sender, receiver) = mpsc::channel(QUEUE_BUFFER);
         // TODO: (A) make async (qutex + https://github.com/rust-lang-nursery/futures-rs/issues/1187 ?)
-        let actor_id = SENDERS.write().unwrap().allocate(sender);
+        let actor_id = LOCAL_SENDERS.write().unwrap().allocate(sender);
         LocalChannel { actor_id, receiver }
     }
 }
@@ -96,9 +97,9 @@ impl Pid {
 
     pub fn send<M: Message>(&self, msg: Box<M>) -> impl Future<Item = (), Error = SendError> {
         // TODO: (C) Check these `.unwrap()` are actually sane
-        let sender = SENDERS.read().unwrap().get(self.actor_id).unwrap();
+        let sender = LOCAL_SENDERS.read().unwrap().get(self.actor_id).unwrap();
         sender
-            .send(msg as Box<Send>)
+            .send(msg as LocalMessage)
             .map(|_| ())
             .map_err(|_| SendError::new())
     }
@@ -108,8 +109,8 @@ pub enum Void {}
 
 pub fn receive(
     _wanted: &Fn(&Send) -> bool,
-) -> impl Future<Item = Box<Send + 'static>, Error = Void> {
-    future::ok(Box::new(()) as Box<Send>) // TODO: (A) implement
+) -> impl Future<Item = LocalMessage, Error = Void> {
+    future::ok(Box::new(()) as LocalMessage) // TODO: (A) implement
 }
 
 #[cfg(test)]
