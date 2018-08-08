@@ -7,12 +7,9 @@ extern crate serde;
 #[macro_use]
 extern crate serde_derive;
 
-use futures::{future, Future, sync::mpsc};
+use futures::{future, sync::mpsc, Future, Sink};
 use serde::{Deserialize, Serialize};
-use std::{
-    sync::RwLock,
-    collections::HashMap,
-};
+use std::{collections::HashMap, sync::RwLock};
 
 const QUEUE_BUFFER: usize = 64; // TODO: (C) fiddle
 
@@ -39,6 +36,10 @@ impl Senders {
         self.next_actor_id = self.next_actor_id.checked_add(1).unwrap();
         self.map.insert(actor_id, sender);
         actor_id
+    }
+
+    fn get(&self, actor_id: ActorId) -> Option<Sender> {
+        self.map.get(&actor_id).map(|s| s.clone())
     }
 }
 
@@ -71,7 +72,15 @@ task_local! {
 // data.
 pub trait Message: 'static + Send + Serialize + for<'a> Deserialize<'a> {}
 
-pub enum Void {}
+pub struct SendError {
+    _priv: (),
+}
+
+impl SendError {
+    fn new() -> SendError {
+        SendError { _priv: () }
+    }
+}
 
 pub struct Pid {
     // TODO: (A) Cross-process / over-the-network messages
@@ -85,12 +94,21 @@ impl Pid {
         }
     }
 
-    pub fn send<M: Message>(&self, msg: M) -> impl Future<Item = (), Error = Void> {
-        future::ok(()) // TODO: (A) implement
+    pub fn send<M: Message>(&self, msg: Box<M>) -> impl Future<Item = (), Error = SendError> {
+        // TODO: (C) Check these `.unwrap()` are actually sane
+        let sender = SENDERS.read().unwrap().get(self.actor_id).unwrap();
+        sender
+            .send(msg as Box<Send>)
+            .map(|_| ())
+            .map_err(|_| SendError::new())
     }
 }
 
-pub fn receive(_wanted: &Fn(&Send) -> bool) -> impl Future<Item = Box<Send + 'static>, Error = Void> {
+pub enum Void {}
+
+pub fn receive(
+    _wanted: &Fn(&Send) -> bool,
+) -> impl Future<Item = Box<Send + 'static>, Error = Void> {
     future::ok(Box::new(()) as Box<Send>) // TODO: (A) implement
 }
 
