@@ -70,7 +70,7 @@ task_local! {
 // #[serde(deny_unknown_fields)] is a bare minimum, and it's recommended
 // to include a struct name and maybe even version field in the serialized
 // data.
-pub trait Message: 'static + Send + Serialize + for<'a> Deserialize<'a> {}
+pub trait Message: 'static + Send + Serialize + for<'de> Deserialize<'de> {}
 
 pub struct SendError {
     _priv: (),
