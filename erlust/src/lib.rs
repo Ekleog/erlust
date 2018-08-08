@@ -1,11 +1,16 @@
 #[macro_use]
 extern crate futures;
 extern crate serde;
+#[cfg(test)]
+#[macro_use]
+extern crate serde_derive;
 
 use futures::{future, Future};
-use serde::{Serialize, Deserialize};
-use std::any::Any;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use serde::{Deserialize, Serialize};
+use std::{
+    any::Any,
+    sync::atomic::{AtomicUsize, Ordering},
+};
 
 static CUR_ACTOR_ID: AtomicUsize = AtomicUsize::new(0);
 
@@ -38,4 +43,11 @@ pub fn receive(_wanted: &Fn(&Any) -> bool) -> impl Future<Item = Box<Any + 'stat
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
+    #[derive(Serialize, Deserialize)]
+    struct TestMsg {
+        foo: String,
+    }
+    impl Message for TestMsg {}
 }
