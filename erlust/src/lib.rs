@@ -1,4 +1,5 @@
-#[macro_use]
+#![feature(futures_api, async_await, await_macro)]
+
 extern crate futures;
 #[macro_use]
 extern crate lazy_static;
@@ -7,12 +8,15 @@ extern crate serde;
 #[macro_use]
 extern crate serde_derive;
 
-use futures::{future, sync::mpsc, Future, Sink, Stream};
+use futures::prelude::*;
+use futures::channel::mpsc;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, LinkedList},
     sync::RwLock,
 };
+
+pub use futures::{channel::mpsc::SendError, task::SpawnError};
 
 const QUEUE_BUFFER: usize = 64; // TODO: (C) fiddle
 
@@ -60,7 +64,7 @@ struct LocalChannel {
 impl LocalChannel {
     fn new() -> LocalChannel {
         let (sender, receiver) = mpsc::channel(QUEUE_BUFFER);
-        // TODO: (A) make async (qutex + https://github.com/rust-lang-nursery/futures-rs/issues/1187 ?)
+        // TODO: (A) make async (qutex + https://github.com/rust-lang-nursery/futures-rs/issues/1187 ? or ragequit and use parking_lot?)
         let actor_id = LOCAL_SENDERS.write().unwrap().allocate(sender);
         LocalChannel {
             actor_id,
@@ -70,8 +74,16 @@ impl LocalChannel {
     }
 }
 
-task_local! {
-    static MY_CHANNEL: LocalChannel = LocalChannel::new()
+thread_local! {
+    static MY_CHANNEL: LocalChannel = LocalChannel::new();
+}
+
+pub fn spawn<Fut>(fut: Fut) -> impl Future<Output = Result<(), SpawnError>>
+where
+    Fut: Future<Output = ()> + Send + 'static
+{
+    // TODO: (A) set the task_local! data here
+    future::lazy(move |cx| cx.executor().spawn(fut))
 }
 
 // Warning: the Deserialize implementation should be implemented
@@ -80,16 +92,6 @@ task_local! {
 // to include a struct name and maybe even version field in the serialized
 // data.
 pub trait Message: 'static + Send + Serialize + for<'de> Deserialize<'de> {}
-
-pub struct SendError {
-    _priv: (),
-}
-
-impl SendError {
-    fn new() -> SendError {
-        SendError { _priv: () }
-    }
-}
 
 pub struct Pid {
     // TODO: (A) Cross-process / over-the-network messages
@@ -103,13 +105,10 @@ impl Pid {
         }
     }
 
-    pub fn send<M: Message>(&self, msg: Box<M>) -> impl Future<Item = (), Error = SendError> {
+    async fn send<M: Message>(&self, msg: Box<M>) -> Result<(), SendError> {
         // TODO: (C) Check these `.unwrap()` are actually sane
-        let sender = LOCAL_SENDERS.read().unwrap().get(self.actor_id).unwrap();
-        sender
-            .send(msg as LocalMessage)
-            .map(|_| ())
-            .map_err(|_| SendError::new())
+        let mut sender = LOCAL_SENDERS.read().unwrap().get(self.actor_id).unwrap();
+        await!(sender.send(msg as LocalMessage))
     }
 }
 

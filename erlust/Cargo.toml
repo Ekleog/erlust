@@ -1,5 +1,8 @@
+cargo-features = ["edition"]
+
 [package]
 name = "erlust"
+edition = "2018"
 version = "0.1.0"
 authors = ["Léo Gaspard <leo@gaspard.io>"]
 license = "MIT"
@@ -9,9 +12,12 @@ keywords = ["actor", "erlang", "async", "serialization", "futures",
 description = "Erlang-like actor system for Rust"
 
 [dependencies]
-futures = "0.1.23"
 lazy_static = "1.1"
 serde = "1.0"
+
+[dependencies.futures-preview]
+git = "https://github.com/rust-lang-nursery/futures-rs"
+rev = "1b6e8150e7339478e73b87ff3d616010bdb1ab0b"
 
 [dev-dependencies]
 serde_derive = "1.0"
