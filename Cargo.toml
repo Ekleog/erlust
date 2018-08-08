@@ -1,0 +1,8 @@
+[workspace]
+members = ["erlust"]
+
+[profile.release]
+lto = true
+
+# TODO: (C) setup clippy
+# TODO: (C) setup cargo-bench

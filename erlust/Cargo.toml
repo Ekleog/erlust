@@ -1,0 +1,11 @@
+[package]
+name = "erlust"
+version = "0.1.0"
+authors = ["Léo Gaspard <leo@gaspard.io>"]
+license = "MIT"
+categories = ["asynchronous", "concurrency", "rust-patterns"]
+keywords = ["actor", "erlang", "async", "serialization", "futures",
+    "concurrency", "message-passing", "distributed-systems"]
+description = "Erlang-like actor system for Rust"
+
+[dependencies]
