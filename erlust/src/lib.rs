@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 use std::{
     cell::RefCell,
     collections::{HashMap, LinkedList},
-    mem::PinMut,
+    mem::{self, PinMut},
     sync::RwLock,
 };
 
@@ -105,6 +105,7 @@ impl<Fut: Future<Output = ()>> Future for LocalChannelUpdater<Fut> {
     fn poll(self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
         MY_CHANNEL.with(|my_channel| {
             // TODO: (B) Check this unsafe is actually safe and comment here on why
+            // TODO: (B) Use scoped-tls?
             unsafe {
                 let this = PinMut::get_mut_unchecked(self);
                 my_channel.replace(this.channel.take());
@@ -150,9 +151,6 @@ impl Pid {
     }
 }
 
-pub enum Void {}
-
-//
 // macro_rules! receive {
 // {
 // $(
@@ -167,46 +165,46 @@ pub enum Void {}
 // }
 //
 
-// Do not rely on this function being stable. Despite being `pub`, it is part of
-// the *internal* API of Erlust, that is to be used by the documented `receive`
-// only.
-//
-// #[doc(hidden)]
-// pub fn __receive<IgnoreFn, Fut, E>(ignore: IgnoreFn) -> impl Future<Item =
-// LocalMessage, Error = ()> where
-// Fut: Future<Item = bool, Error = ()>,
-// IgnoreFn: Fn(&LocalMessage) -> Fut,
-// {
-// MY_CHANNEL.with(|c| {
-// First, attempt to find in waiting list
-// for m in c.waiting {
-// TODO: (A) Make it await!() when possible
-// if !ignore(&m).wait().unwrap_or(true) {
-// return future::Either::A(future::ok(m));
-// }
-// }
-//
-// Push all irrelevant messages to the waiting list
-// TODO: (B) Make this await!() when possible
-// future::Either::B(
-// c.receiver
-// .by_ref()
-// .take_while(ignore)
-// .fold(&mut c.waiting, |wait, msg| {
-// wait.push_back(msg);
-// future::ok(wait)
-// })
-// .and_then(|_| {
-// c.receiver
-// .by_ref()
-// .into_future()
-// .map(|(elt, _)| elt.unwrap()) // TODO: (B) Handle end-of-stream?
-// .map_err(|((), _)| ())
-// }),
-// )
-// })
-// }
-//
+#[doc(hidden)]
+pub async fn __receive<WantFn, Fut>(want: WantFn) -> LocalMessage
+where
+    Fut: Future<Output = bool>,
+    WantFn: Fn(&LocalMessage) -> Fut,
+{
+    // This `expect` shouldn't trigger, because `LocalChannelUpdater` should always
+    // keep `MY_CHANNEL` task-local. As such, the only moment where it should be
+    // set to `None` is here, and it is restored before the end of this function,
+    // and `__receive` cannot be called inside `__receive`.
+    let mut chan = MY_CHANNEL
+        .with(|c| c.borrow_mut().take())
+        .expect("Called receive inside receive");;
+
+    // First, attempt to find a message in waiting list
+    let waitlist = mem::replace(&mut chan.waiting, LinkedList::new());
+    for msg in waitlist {
+        if await!(want(&msg)) {
+            MY_CHANNEL.with(|c| *c.borrow_mut() = Some(chan));
+            return msg;
+        } else {
+            chan.waiting.push_back(msg);
+        }
+    }
+
+    // Push all irrelevant messages to the waiting list, then return relevant one
+    loop {
+        // This `expect` shouldn't trigger, because `chan.receiver.next()` is
+        // supposed to answer `None` iff all `Sender`s associated to the channel
+        // have been dropped. Except we always keep a `Sender` alive in the
+        // `LOCAL_SENDERS` map, and `__receive` should not be able to be called
+        // once the actor has been dropped, so this should be safe.
+        let msg = await!(chan.receiver.next()).expect("Called receive after the actor was dropped");
+        if await!(want(&msg)) {
+            MY_CHANNEL.with(|c| *c.borrow_mut() = Some(chan));
+            return msg;
+        }
+        chan.waiting.push_back(msg);
+    }
+}
 
 #[cfg(test)]
 mod tests {
