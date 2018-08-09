@@ -5,9 +5,9 @@ sudo: required
 os: [ linux ]
 
 rust:
-  - 1.26.0
-  - stable
-  - beta
+  #- 1.26.0
+  #- stable
+  #- beta
   - nightly
 
 # TODO: (C) import interesting stuff from https://github.com/Geal/nom/blob/master/.travis.yml
