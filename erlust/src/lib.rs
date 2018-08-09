@@ -1,4 +1,4 @@
-#![feature(futures_api, async_await, await_macro)]
+#![feature(arbitrary_self_types, async_await, await_macro, futures_api, pin)]
 
 extern crate futures;
 #[macro_use]
@@ -12,7 +12,9 @@ use futures::prelude::*;
 use futures::channel::mpsc;
 use serde::{Deserialize, Serialize};
 use std::{
+    cell::RefCell,
     collections::{HashMap, LinkedList},
+    mem::PinMut,
     sync::RwLock,
 };
 
@@ -75,15 +77,46 @@ impl LocalChannel {
 }
 
 thread_local! {
-    static MY_CHANNEL: LocalChannel = LocalChannel::new();
+    static MY_CHANNEL: RefCell<Option<LocalChannel>> = RefCell::new(None);
+}
+
+struct LocalChannelUpdater<Fut: Future<Output = ()>> {
+    channel: Option<LocalChannel>,
+    fut: Fut,
+}
+
+impl<Fut: Future<Output = ()>> LocalChannelUpdater<Fut> {
+    fn new(fut: Fut) -> LocalChannelUpdater<Fut> {
+        LocalChannelUpdater {
+            channel: Some(LocalChannel::new()),
+            fut
+        }
+    }
+}
+
+impl<Fut: Future<Output = ()>> Future for LocalChannelUpdater<Fut> {
+    type Output = ();
+
+    fn poll(self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+        MY_CHANNEL.with(|my_channel| {
+            // TODO: (B) Check this unsafe is actually safe and comment here on why
+            unsafe {
+                let this = PinMut::get_mut_unchecked(self);
+                my_channel.replace(this.channel.take());
+                let res = PinMut::new_unchecked(&mut this.fut).poll(cx);
+                this.channel = my_channel.replace(None);
+                res
+            }
+        })
+    }
 }
 
 pub fn spawn<Fut>(fut: Fut) -> impl Future<Output = Result<(), SpawnError>>
 where
     Fut: Future<Output = ()> + Send + 'static
 {
-    // TODO: (A) set the task_local! data here
-    future::lazy(move |cx| cx.executor().spawn(fut))
+    let task = LocalChannelUpdater::new(fut);
+    future::lazy(move |cx| cx.executor().spawn(task))
 }
 
 // Warning: the Deserialize implementation should be implemented
@@ -101,7 +134,7 @@ pub struct Pid {
 impl Pid {
     pub fn me() -> Pid {
         Pid {
-            actor_id: MY_CHANNEL.with(|c| c.actor_id),
+            actor_id: MY_CHANNEL.with(|c| c.borrow().as_ref().unwrap().actor_id),
         }
     }
 
