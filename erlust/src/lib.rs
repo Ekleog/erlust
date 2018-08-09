@@ -147,6 +147,21 @@ impl Pid {
 
 pub enum Void {}
 
+/*
+macro_rules! receive {
+    {
+        $(
+            $typ:ty : $pattern:pat
+            $(if $guard:expr)*
+            => $body:expr
+            $(,)*
+        )+
+    } => {
+        // ...
+    };
+}
+*/
+
 // Do not rely on this function being stable. Despite being `pub`, it is part of
 // the *internal* API of Erlust, that is to be used by the documented `receive`
 // only.
