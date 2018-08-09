@@ -1,4 +1,10 @@
-#![feature(arbitrary_self_types, async_await, await_macro, futures_api, pin)]
+#![feature(
+    arbitrary_self_types,
+    async_await,
+    await_macro,
+    futures_api,
+    pin
+)]
 
 extern crate futures;
 #[macro_use]
@@ -8,8 +14,7 @@ extern crate serde;
 #[macro_use]
 extern crate serde_derive;
 
-use futures::prelude::*;
-use futures::channel::mpsc;
+use futures::{channel::mpsc, prelude::*};
 use serde::{Deserialize, Serialize};
 use std::{
     cell::RefCell,
@@ -82,14 +87,14 @@ thread_local! {
 
 struct LocalChannelUpdater<Fut: Future<Output = ()>> {
     channel: Option<LocalChannel>,
-    fut: Fut,
+    fut:     Fut,
 }
 
 impl<Fut: Future<Output = ()>> LocalChannelUpdater<Fut> {
     fn new(fut: Fut) -> LocalChannelUpdater<Fut> {
         LocalChannelUpdater {
             channel: Some(LocalChannel::new()),
-            fut
+            fut,
         }
     }
 }
@@ -113,7 +118,7 @@ impl<Fut: Future<Output = ()>> Future for LocalChannelUpdater<Fut> {
 
 pub fn spawn<Fut>(fut: Fut) -> impl Future<Output = Result<(), SpawnError>>
 where
-    Fut: Future<Output = ()> + Send + 'static
+    Fut: Future<Output = ()> + Send + 'static,
 {
     let task = LocalChannelUpdater::new(fut);
     future::lazy(move |cx| cx.executor().spawn(task))
@@ -147,61 +152,61 @@ impl Pid {
 
 pub enum Void {}
 
-/*
-macro_rules! receive {
-    {
-        $(
-            $typ:ty : $pattern:pat
-            $(if $guard:expr)*
-            => $body:expr
-            $(,)*
-        )+
-    } => {
-        // ...
-    };
-}
-*/
+//
+// macro_rules! receive {
+// {
+// $(
+// $typ:ty : $pattern:pat
+// $(if $guard:expr)*
+// => $body:expr
+// $(,)*
+// )+
+// } => {
+// ...
+// };
+// }
+//
 
 // Do not rely on this function being stable. Despite being `pub`, it is part of
 // the *internal* API of Erlust, that is to be used by the documented `receive`
 // only.
-/*
-#[doc(hidden)]
-pub fn __receive<IgnoreFn, Fut, E>(ignore: IgnoreFn) -> impl Future<Item = LocalMessage, Error = ()>
-where
-    Fut: Future<Item = bool, Error = ()>,
-    IgnoreFn: Fn(&LocalMessage) -> Fut,
-{
-    MY_CHANNEL.with(|c| {
-        // First, attempt to find in waiting list
-        for m in c.waiting {
-            // TODO: (A) Make it await!() when possible
-            if !ignore(&m).wait().unwrap_or(true) {
-                return future::Either::A(future::ok(m));
-            }
-        }
-
-        // Push all irrelevant messages to the waiting list
-        // TODO: (B) Make this await!() when possible
-        future::Either::B(
-            c.receiver
-                .by_ref()
-                .take_while(ignore)
-                .fold(&mut c.waiting, |wait, msg| {
-                    wait.push_back(msg);
-                    future::ok(wait)
-                })
-                .and_then(|_| {
-                    c.receiver
-                    .by_ref()
-                    .into_future()
-                    .map(|(elt, _)| elt.unwrap()) // TODO: (B) Handle end-of-stream?
-                    .map_err(|((), _)| ())
-                }),
-        )
-    })
-}
-*/
+//
+// #[doc(hidden)]
+// pub fn __receive<IgnoreFn, Fut, E>(ignore: IgnoreFn) -> impl Future<Item =
+// LocalMessage, Error = ()> where
+// Fut: Future<Item = bool, Error = ()>,
+// IgnoreFn: Fn(&LocalMessage) -> Fut,
+// {
+// MY_CHANNEL.with(|c| {
+// First, attempt to find in waiting list
+// for m in c.waiting {
+// TODO: (A) Make it await!() when possible
+// if !ignore(&m).wait().unwrap_or(true) {
+// return future::Either::A(future::ok(m));
+// }
+// }
+//
+// Push all irrelevant messages to the waiting list
+// TODO: (B) Make this await!() when possible
+// future::Either::B(
+// c.receiver
+// .by_ref()
+// .take_while(ignore)
+// .fold(&mut c.waiting, |wait, msg| {
+// wait.push_back(msg);
+// future::ok(wait)
+// })
+// .and_then(|_| {
+// c.receiver
+// .by_ref()
+// .into_future()
+// .map(|(elt, _)| elt.unwrap()) // TODO: (B) Handle end-of-stream?
+// .map_err(|((), _)| ())
+// }),
+// )
+// })
+// }
+//
 
 #[cfg(test)]
 mod tests {
