@@ -144,7 +144,7 @@ impl Pid {
         }
     }
 
-    async fn send<M: Message>(&self, msg: Box<M>) -> Result<(), SendError> {
+    pub async fn send<M: Message>(&self, msg: Box<M>) -> Result<(), SendError> {
         // TODO: (C) Check these `.unwrap()` are actually sane
         let mut sender = LOCAL_SENDERS.read().unwrap().get(self.actor_id).unwrap();
         await!(sender.send(msg as LocalMessage))
