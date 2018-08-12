@@ -30,6 +30,7 @@ before_script: |
   fi
 
 # TODO: (C) auto-build doc and push it to github pages (cargo doc and mdBook?)
+# TODO: (B) remove --test from `cargo test` when upstream is fixed
 script: |
   if [ -n "$TARPAULIN" ]; then
     cargo tarpaulin --out Xml
@@ -38,7 +39,7 @@ script: |
     cargo +nightly fmt --all -- --check
   else
     cargo build --all --all-features
-    cargo test --all --all-features
+    cargo test --all --all-features --test
   fi
 
 after_success: |
