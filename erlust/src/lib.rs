@@ -241,7 +241,7 @@ macro_rules! erlust_util {
         $typ:ty : $pattern:pat $(if $guard:expr)* => $body:block $(,)*
         $($next:tt)*
     ) => {
-        match (&**$var).downcast_ref::<$typ>() {
+        match (&*$var).downcast_ref::<$typ>() {
             Some($pattern) $(if $guard)* => true,
             None => erlust_util!(@do_match to_bool ($var) $($next)*)
         }
@@ -280,7 +280,7 @@ macro_rules! receive {
         erlust_util!(@do_match to_exec
             (
                 $crate::__receive(|msg: &LocalMessage| {
-                    erlust_util!(@do_match to_bool (msg) $($x:tt)*)
+                    erlust_util!(@do_match to_bool (*msg) $($x:tt)*)
                 })
             )
             $($x:tt)*
