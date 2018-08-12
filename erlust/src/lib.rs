@@ -192,8 +192,8 @@ where
     }
 }
 
-// TODO: (A) add tag() for trait Message, custom_derive to fill it in from attribute
-// (but do not default to the struct type)
+// TODO: (A) add tag() for trait Message,  and custom_derive to fill it in
+// (but do not default to the struct type, require explicit tag)
 
 #[doc(hidden)]
 #[macro_export]
@@ -302,9 +302,9 @@ macro_rules! erlust_util {
 //          }
 //      }
 //  }).downcast::<(usize, String)>() {
-//      Ok(res) if { if let (1, y) = &*res { baz(y) } else { false } } => quux(y),
+//      Ok(r) if { if let (1, y) = &*r { baz(y) } else { false } } => quux(y),
 //      Err(b) => match b.downcast::<usize>() {
-//          Ok(res) if { if let x = &*res { foo(x) } else { false } } => bar(x),
+//          Ok(r) if { if let x = &*r { foo(x) } else { false } } => bar(x),
 //          Err(_) => unreachable!(),
 //      }
 //  }
@@ -340,9 +340,9 @@ macro_rules! receive {
 //          }
 //      }
 //  }).downcast::<(usize, String)>() {
-//      Ok(res) if { if let (1, y) = &*res { baz(y) } else { false } } => quux(y),
+//      Ok(r) if { if let (1, y) = &*r { baz(y) } else { false } } => quux(y),
 //      Err(b) => match b.downcast::<usize>() {
-//          Ok(res) if { if let x = &*res { foo(x) } else { false } } => bar(x),
+//          Ok(r) if { if let x = &*r { foo(x) } else { false } } => bar(x),
 //          Err(_) => unreachable!(),
 //      }
 //  }
@@ -354,9 +354,9 @@ macro_rules! receive_box {
     }
 }
 
-// TODO: (A) match just refuses to bind by-move in guard, this'd makes things simpler for us
-// TODO: (B) Make semantics of receive! / receive_box! precise wrt. borrowing and owning
-// TODO: (B) Make sure receive! / receive_box! accept exactly the same syntax as match
+// TODO: (A) match just refuses to bind by-move in guard, this'd simplify
+// TODO: (B) Make semantics of receive{,_box}! precise wrt. borrowing and owning
+// TODO: (B) Make sure receive{,_box}! accept exactly the same syntax as match
 
 #[cfg(test)]
 mod tests {
