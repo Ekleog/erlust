@@ -195,14 +195,103 @@ where
 // TODO: (A) add tag() for trait Message, custom_derive to fill it in from attribute
 // (but do not default to the struct type)
 
-// Given:
+#[doc(hidden)]
+#[macro_export]
+macro_rules! erlust_util {
+    // @do_receive
+    ( @do_receive $boxed:tt $($x:tt)+ ) => {
+        erlust_util!(@do_match $is_box to_exec
+            (
+                $crate::__receive(|msg: &LocalMessage| {
+                    erlust_util!(@do_match $boxed to_bool (*msg) $($x:tt)+)
+                })
+            )
+            $($x:tt)*
+        )
+    };
+
+    // @do_match
+    (
+        @do_match $boxed:tt $to:tt ( $var:expr )
+        $typ:ty : $pattern:pat $(if $guard:expr)* => $body:expr ,
+        $($next:tt)*
+    ) => {
+        erlust_util!(
+            @do_match $boxed $to ($var)
+            $typ : $pattern $(if $guard)* => { $body }
+            $($next)*
+        )
+    };
+
+    (
+        @do_match $boxed:tt to_bool ( $var:expr )
+        $typ:ty : $pattern:pat $(if $guard:expr)* => $body:block $(,)*
+        $($next:tt)*
+    ) => {
+        match (&*$var).downcast_ref::<$typ>() {
+            Some($pattern) $(if $guard)* => true,
+            None => erlust_util!(@do_match to_bool ($var) $($next)*)
+        }
+    };
+
+    ( @do_match $boxed:tt to_bool ( $var:expr ) ) => {
+        false
+    };
+
+    (
+        @do_match $boxed:tt to_expr ( $var:expr )
+        $typ:ty : $pattern:pat $(if $guard:expr)* => $body:block $(,)*
+        $($next:tt)*
+    ) => {
+        match $var.downcast::<$typ>() {
+            Ok(res) if {
+                if let $pattern = &*res {
+                    $($guard)#* // The # should (hopefully) trigger a syntax error
+                } else {
+                    false
+                }
+            } => {
+                erlust_util!(@exec_body $boxed ( res ) $pattern $body)
+            },
+            Err(b) => erlust_util!(@do_match to_expr ($var) $($next)*),
+        }
+    };
+
+    // TODO: (C) consider making this unreachable_unchecked (needs benchmark)
+    ( @do_match $boxed:tt to_expr ( $var:expr ) ) => {
+        unreachable!()
+    };
+
+    // @exec_body
+    ( @exec_body unboxed ( $var:expr ) $pattern:pat $body:block ) => {
+        {
+            let $pattern = *$var;
+            $body
+        }
+    }
+
+    ( @exec_body boxed ( $var:expr ) $pattern:pat $body:block ) => {
+        {
+            let $pattern = $var;
+            $body
+        }
+    }
+}
+
+// Being given:
 //
 //  receive! {
 //      (usize, String): (1, y) if baz(y) => quux(y),
 //      usize: x if foo(x) => bar(x),
 //  }
 //
-// Expand to:
+// With types:
+//  * `baz`:  `Fn(&String) -> bool`
+//  * `quux`: `Fn(String) -> T`
+//  * `foo`:  `Fn(&usize) -> bool`
+//  * `bar`:  `Fn(usize) -> T`
+//
+// Expands to:
 //
 //  match __receive(|msg: &LocalMessage| {
 //      match (&**msg).downcast_ref::<(usize, String)>() {
@@ -220,76 +309,54 @@ where
 //      }
 //  }
 
-#[doc(hidden)]
-#[macro_export]
-macro_rules! erlust_util {
-    // @do_match
-    (
-        @do_match $to:tt ( $var:expr )
-        $typ:ty : $pattern:pat $(if $guard:expr)* => $body:expr ,
-        $($next:tt)*
-    ) => {
-        erlust_util!(
-            @do_match $to ($var)
-            $typ : $pattern $(if $guard)* => { $body }
-            $($next)*
-        )
-    };
-
-    (
-        @do_match to_bool ( $var:expr )
-        $typ:ty : $pattern:pat $(if $guard:expr)* => $body:block $(,)*
-        $($next:tt)*
-    ) => {
-        match (&*$var).downcast_ref::<$typ>() {
-            Some($pattern) $(if $guard)* => true,
-            None => erlust_util!(@do_match to_bool ($var) $($next)*)
-        }
-    };
-
-    ( @do_match to_bool ( $var:expr ) ) => {
-        false
-    };
-
-    (
-        @do_match to_expr ( $var:expr )
-        $typ:ty : $pattern:pat $(if $guard:expr)* => $body:block $(,)*
-        $($next:tt)*
-    ) => {
-        match $var.downcast::<$typ>() {
-            Ok(res) if {
-                if let $pattern = &*res {
-                    $($guard)#*
-                } else {
-                    false
-                }
-            } => $body,
-            Err(b) => erlust_util!(@do_match to_expr ($var) $($next)*),
-        }
-    };
-
-    // TODO: (C) consider making this unreachable_unchecked
-    ( @do_match to_expr ( $var:expr ) ) => {
-        unreachable!()
-    };
-}
-
 #[macro_export]
 macro_rules! receive {
     ( $($x:tt)+ ) => {
-        erlust_util!(@do_match to_exec
-            (
-                $crate::__receive(|msg: &LocalMessage| {
-                    erlust_util!(@do_match to_bool (*msg) $($x:tt)*)
-                })
-            )
-            $($x:tt)*
-        )
+        erlust_util!(@do_receive unboxed $($x)+)
     };
 }
 
-// TODO: (A) do receive_box!
+// Being given:
+//
+//  receive_box! {
+//      Box<(usize, String)>: (1, y) if baz(y) => quux(y),
+//      Box<usize>: x if foo(x) => bar(x),
+//  }
+//
+// With types:
+//  * `baz`:  `Fn(&String) -> bool`
+//  * `quux`: `Fn(Box<String>) -> T`
+//  * `foo`:  `Fn(&usize) -> bool`
+//  * `bar`:  `Fn(Box<usize>) -> T`
+//
+// Expands to:
+//
+//  match __receive(|msg: &LocalMessage| {
+//      match (&**msg).downcast_ref::<(usize, String)>() {
+//          Some((1, y)) if baz(y) => true,
+//          None => match (&**msg).downcast_ref::<usize>() {
+//              Some(x) if foo(x) => true,
+//              None => false,
+//          }
+//      }
+//  }).downcast::<(usize, String)>() {
+//      Ok(res) if { if let (1, y) = &*res { baz(y) } else { false } } => quux(y),
+//      Err(b) => match b.downcast::<usize>() {
+//          Ok(res) if { if let x = &*res { foo(x) } else { false } } => bar(x),
+//          Err(_) => unreachable!(),
+//      }
+//  }
 
+#[macro_export]
+macro_rules! receive_box {
+    ( $($x:tt)+ ) => {
+        erlust_util!(@do_receive boxed $($x)+)
+    }
+}
+
+// TODO: (A) match just refuses to bind by-move in guard, this'd makes things simpler for us
+// TODO: (B) Make semantics of receive! / receive_box! precise wrt. borrowing and owning
+// TODO: (B) Make sure receive! / receive_box! accept exactly the same syntax as match
 
 #[cfg(test)]
 mod tests {
@@ -300,4 +367,9 @@ mod tests {
         foo: String,
     }
     impl Message for TestMsg {}
+
+    // TODO: (B) Make this a proper test once https://github.com/rust-lang/rust/issues/53259 solved
+    fn check_compiles() {
+        // TODO: (A) Add receive! / receive_box! tests
+    }
 }
