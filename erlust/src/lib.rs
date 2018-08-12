@@ -71,7 +71,7 @@ struct LocalChannel {
 impl LocalChannel {
     fn new() -> LocalChannel {
         let (sender, receiver) = mpsc::channel(QUEUE_BUFFER);
-        // TODO: (A) make async (qutex + https://github.com/rust-lang-nursery/futures-rs/issues/1187 ? or ragequit and use parking_lot?)
+        // TODO: (A) make async (qutex + change in my task_local handler)
         let actor_id = LOCAL_SENDERS.write().unwrap().allocate(sender);
         LocalChannel {
             actor_id,
