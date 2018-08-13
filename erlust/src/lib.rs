@@ -251,7 +251,7 @@ macro_rules! erlust_util {
                     false
                 }
             } => {
-                erlust_util!(@exec_body $boxed ( res ) $pattern $body)
+                erlust_util!(@exec_body $boxed ( res ) ( $pattern ) $body)
             },
             Err(b) => erlust_util!(@do_match to_expr ($var) $($next)*),
         }
@@ -263,19 +263,19 @@ macro_rules! erlust_util {
     };
 
     // @exec_body
-    ( @exec_body unboxed ( $var:expr ) $pattern:pat $body:block ) => {
+    ( @exec_body unboxed ( $var:expr ) ( $pattern:pat ) $body:block ) => {
         {
             let $pattern = *$var;
             $body
         }
-    }
+    };
 
-    ( @exec_body boxed ( $var:expr ) $pattern:pat $body:block ) => {
+    ( @exec_body boxed ( $var:expr ) ( $pattern:pat ) $body:block ) => {
         {
             let $pattern = $var;
             $body
         }
-    }
+    };
 }
 
 // Being given:
