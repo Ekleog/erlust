@@ -297,33 +297,41 @@ macro_rules! erlust_util {
 // Being given:
 //
 //  receive! {
-//      (usize, String): (1, y) if baz(y) => quux(y),
-//      usize: x if foo(x) => bar(x),
+//      (usize, String): (1, ref x) if foo(x) => bar(x),
+//      usize: y if baz(y) => quux(y),
 //  }
 //
 // With types:
-//  * `baz`:  `Fn(&String) -> bool`
-//  * `quux`: `Fn(String) -> T`
-//  * `foo`:  `Fn(&usize) -> bool`
-//  * `bar`:  `Fn(usize) -> T`
+//  * `foo`:  `Fn(&String) -> bool`
+//  * `bar`:  `Fn(&String) -> T`
+//  * `baz`:  `Fn(usize) -> bool`
+//  * `quux`: `Fn(usize) -> T`
 //
 // Expands to:
 //
-//  match __receive(|msg: &LocalMessage| {
-//      match (&**msg).downcast_ref::<(usize, String)>() {
-//          Some((1, y)) if baz(y) => true,
-//          None => match (&**msg).downcast_ref::<usize>() {
-//              Some(x) if foo(x) => true,
-//              None => false,
-//          }
-//      }
-//  }).downcast::<(usize, String)>() {
-//      Ok(r) if { if let (1, y) = &*r { baz(y) } else { false } } => quux(y),
-//      Err(b) => match b.downcast::<usize>() {
-//          Ok(r) if { if let x = &*r { foo(x) } else { false } } => bar(x),
-//          Err(_) => unreachable!(),
-//      }
-//  }
+//  __receive(|mut msg: LocalMessage| {
+//      msg = match msg.downcast::<(usize, String)>() {
+//          Ok(r) => {
+//              let res = *r;
+//              match res {
+//                  (1, ref x) if foo(x) => return Used(bar(x)),
+//                  res => Box::new(res) as Box<Any>,
+//              }
+//          },
+//          Err(b) => b,
+//      };
+//      msg = match msg.downcast::<usize>() {
+//          Ok(r) => {
+//              let res = *r;
+//              match res {
+//                  y => return Used(bar(x)),
+//                  res => Box::new(res) as Box<Any>,
+//              }
+//          },
+//          Err(b) => b,
+//      };
+//      Ignored(msg)
+//  })
 
 #[macro_export]
 macro_rules! receive {
@@ -335,33 +343,35 @@ macro_rules! receive {
 // Being given:
 //
 //  receive_box! {
-//      Box<(usize, String)>: (1, y) if baz(y) => quux(y),
-//      Box<usize>: x if foo(x) => bar(x),
+//      Box<(usize, String)>: box (1, ref x) if foo(x) => bar(x),
+//      Box<usize>: box y if baz(y) => quux(y),
+//      Box<String>: z => foobar(z),
 //  }
 //
 // With types:
-//  * `baz`:  `Fn(&String) -> bool`
-//  * `quux`: `Fn(Box<String>) -> T`
-//  * `foo`:  `Fn(&usize) -> bool`
-//  * `bar`:  `Fn(Box<usize>) -> T`
+//  * `foo`:    `Fn(&String) -> bool`
+//  * `bar`:    `Fn(&String) -> T`
+//  * `baz`:    `Fn(usize) -> bool`
+//  * `quux`:   `Fn(usize) -> T`
+//  * `foobar`: `Fn(Box<String>) -> T`
 //
 // Expands to:
 //
-//  match __receive(|msg: &LocalMessage| {
-//      match (&**msg).downcast_ref::<(usize, String)>() {
-//          Some((1, y)) if baz(y) => true,
-//          None => match (&**msg).downcast_ref::<usize>() {
-//              Some(x) if foo(x) => true,
-//              None => false,
-//          }
-//      }
-//  }).downcast::<(usize, String)>() {
-//      Ok(r) if { if let (1, y) = &*r { baz(y) } else { false } } => quux(y),
-//      Err(b) => match b.downcast::<usize>() {
-//          Ok(r) if { if let x = &*r { foo(x) } else { false } } => bar(x),
-//          Err(_) => unreachable!(),
-//      }
-//  }
+//  __receive(|mut msg: LocalMessage| {
+//      msg = match msg.downcast::<(usize, String)>() {
+//          Ok(box (1, ref x)) if foo(x) => return Used(bar(x)),
+//          Err(b) => b,
+//      };
+//      msg = match msg.downcast::<usize>() {
+//          Ok(box y) if baz(y) => return Used(quux(y)),
+//          Err(b) => b,
+//      };
+//      msg = match msg.downcast::<String>() {
+//          Ok(z) => Used(foobar(z)),
+//          Err(b) => b,
+//      };
+//      Ignored(msg)
+//  })
 
 #[macro_export]
 macro_rules! receive_box {
