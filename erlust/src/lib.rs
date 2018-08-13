@@ -181,10 +181,10 @@ where
             Used(ret) => {
                 MY_CHANNEL.with(|c| *c.borrow_mut() = Some(chan));
                 return ret;
-            },
+            }
             Ignored(msg) => {
                 chan.waiting.push_back(msg);
-            },
+            }
         }
     }
 
@@ -200,7 +200,7 @@ where
             Used(ret) => {
                 MY_CHANNEL.with(|c| *c.borrow_mut() = Some(chan));
                 return ret;
-            },
+            }
             Ignored(msg) => {
                 chan.waiting.push_back(msg);
             }
