@@ -152,11 +152,19 @@ impl Pid {
 }
 
 #[doc(hidden)]
-pub async fn __receive<WantFn, Fut>(want: WantFn) -> LocalMessage
+pub enum __ReceiveResult<Ret> {
+    Ignored(LocalMessage),
+    Used(Ret),
+}
+
+#[doc(hidden)]
+pub async fn __receive<HandleFn, Fut, Ret>(handle: HandleFn) -> Ret
 where
-    Fut: Future<Output = bool>,
-    WantFn: Fn(&LocalMessage) -> Fut,
+    Fut: Future<Output = __ReceiveResult<Ret>>,
+    HandleFn: Fn(LocalMessage) -> Fut,
 {
+    use self::__ReceiveResult::*;
+
     // This `expect` shouldn't trigger, because `LocalChannelUpdater` should always
     // keep `MY_CHANNEL` task-local. As such, the only moment where it should be
     // set to `None` is here, and it is restored before the end of this function,
@@ -166,13 +174,17 @@ where
         .expect("Called receive inside receive");;
 
     // First, attempt to find a message in waiting list
+    // TODO: (B) Do this running-through-the-list in-place
     let waitlist = mem::replace(&mut chan.waiting, LinkedList::new());
     for msg in waitlist {
-        if await!(want(&msg)) {
-            MY_CHANNEL.with(|c| *c.borrow_mut() = Some(chan));
-            return msg;
-        } else {
-            chan.waiting.push_back(msg);
+        match await!(handle(msg)) {
+            Used(ret) => {
+                MY_CHANNEL.with(|c| *c.borrow_mut() = Some(chan));
+                return ret;
+            },
+            Ignored(msg) => {
+                chan.waiting.push_back(msg);
+            },
         }
     }
 
@@ -184,11 +196,15 @@ where
         // `LOCAL_SENDERS` map, and `__receive` should not be able to be called
         // once the actor has been dropped, so this should be safe.
         let msg = await!(chan.receiver.next()).expect("Called receive after the actor was dropped");
-        if await!(want(&msg)) {
-            MY_CHANNEL.with(|c| *c.borrow_mut() = Some(chan));
-            return msg;
+        match await!(handle(msg)) {
+            Used(ret) => {
+                MY_CHANNEL.with(|c| *c.borrow_mut() = Some(chan));
+                return ret;
+            },
+            Ignored(msg) => {
+                chan.waiting.push_back(msg);
+            }
         }
-        chan.waiting.push_back(msg);
     }
 }
 
