@@ -211,89 +211,6 @@ where
 // TODO: (A) add tag() for trait Message,  and custom_derive to fill it in
 // (but do not default to the struct type, require explicit tag)
 
-#[doc(hidden)]
-#[macro_export]
-macro_rules! erlust_util {
-    // @do_receive
-    ( @do_receive $boxed:tt $($x:tt)+ ) => {
-        erlust_util!(@do_match $is_box to_exec
-            (
-                $crate::__receive(|msg: &LocalMessage| {
-                    erlust_util!(@do_match $boxed to_bool (*msg) $($x:tt)+)
-                })
-            )
-            $($x:tt)*
-        )
-    };
-
-    // @do_match
-    (
-        @do_match $boxed:tt $to:tt ( $var:expr )
-        $typ:ty : $pattern:pat $(if $guard:expr)* => $body:expr ,
-        $($next:tt)*
-    ) => {
-        erlust_util!(
-            @do_match $boxed $to ($var)
-            $typ : $pattern $(if $guard)* => { $body }
-            $($next)*
-        )
-    };
-
-    (
-        @do_match $boxed:tt to_bool ( $var:expr )
-        $typ:ty : $pattern:pat $(if $guard:expr)* => $body:block $(,)*
-        $($next:tt)*
-    ) => {
-        match (&*$var).downcast_ref::<$typ>() {
-            Some($pattern) $(if $guard)* => true,
-            None => erlust_util!(@do_match to_bool ($var) $($next)*)
-        }
-    };
-
-    ( @do_match $boxed:tt to_bool ( $var:expr ) ) => {
-        false
-    };
-
-    (
-        @do_match $boxed:tt to_expr ( $var:expr )
-        $typ:ty : $pattern:pat $(if $guard:expr)* => $body:block $(,)*
-        $($next:tt)*
-    ) => {
-        match $var.downcast::<$typ>() {
-            Ok(res) if {
-                if let $pattern = &*res {
-                    $($guard)#* // The # should (hopefully) trigger a syntax error
-                } else {
-                    false
-                }
-            } => {
-                erlust_util!(@exec_body $boxed ( res ) ( $pattern ) $body)
-            },
-            Err(b) => erlust_util!(@do_match to_expr ($var) $($next)*),
-        }
-    };
-
-    // TODO: (C) consider making this unreachable_unchecked (needs benchmark)
-    ( @do_match $boxed:tt to_expr ( $var:expr ) ) => {
-        unreachable!()
-    };
-
-    // @exec_body
-    ( @exec_body unboxed ( $var:expr ) ( $pattern:pat ) $body:block ) => {
-        {
-            let $pattern = *$var;
-            $body
-        }
-    };
-
-    ( @exec_body boxed ( $var:expr ) ( $pattern:pat ) $body:block ) => {
-        {
-            let $pattern = $var;
-            $body
-        }
-    };
-}
-
 // Being given:
 //
 //  receive! {
@@ -335,8 +252,33 @@ macro_rules! erlust_util {
 
 #[macro_export]
 macro_rules! receive {
+    ( @line ($var:ident)
+      $typ:ty : $pattern:pat $(if $guard:expr)* => $body:expr , $($n:tt)* ) => {
+        receive!(@line ($var) $typ: $pattern $(if $guard)* => { $body })
+    };
+
+    ( @line ($var:ident)
+      $typ:ty : $pattern:pat $(if $guard:expr)* => $body:block $(,)* $($n:tt)* ) => {
+        $var = match $var.downcast::<$typ>() {
+            // TODO: (B) Avoid realloc with box patterns h:box_patterns
+            Ok(r) => match *r {
+                $pattern $(if $guard)* => return Used($body),
+                mismatch => Box::new(mismatch) as Box<Any>,
+            },
+            Err(mismatch) => mismatch,
+        };
+        receive!(@line ($var) $($n)*)
+    };
+
+    ( @line ($var:ident) ) => {
+        Ignored($var)
+    };
+
     ( $($x:tt)+ ) => {
-        erlust_util!(@do_receive unboxed $($x)+)
+        $crate::__receive(|mut msg: LocalMessage| {
+            use $crate::__ReceiveResult::*;
+            receive!(@line (msg) $($x)+)
+        })
     };
 }
 
@@ -375,9 +317,30 @@ macro_rules! receive {
 
 #[macro_export]
 macro_rules! receive_box {
+    ( @line ($var:ident)
+      Box< $typ:ty > : $pattern:pat $(if $guard:expr)* => $body:expr , $($n:tt)* ) => {
+        receive_box!(@line ($var) Box<$typ>: $pattern $(if $guard)* => { $body })
+    };
+
+    ( @line ($var:ident)
+      Box< $typ:ty > : $pattern:pat $(if $guard:expr)* => $body:block $(,)* $($n:tt)* ) => {
+        $var = match $var.downcast::<$typ>() {
+            Ok($pattern) $(if $guard)* => return Used($body),
+            Err(mismatch) => mismatch,
+        };
+        receive_box!(@line ($var) $($n)*)
+    };
+
+    ( @line ($var:ident) ) => {
+        Ignored($var)
+    };
+
     ( $($x:tt)+ ) => {
-        erlust_util!(@do_receive boxed $($x)+)
-    }
+        $crate::__receive(|mut msg: LocalMessage| {
+            use $crate::__ReceiveResult::*;
+            receive_box!(@line (msg) $($x)+)
+        })
+    };
 }
 
 // TODO: (A) match just refuses to bind by-move in guard, this'd simplify
