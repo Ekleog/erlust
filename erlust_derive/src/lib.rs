@@ -3,15 +3,22 @@ extern crate quote;
 #[macro_use]
 extern crate syn;
 
-use proc_macro::TokenStream;
+use proc_macro;
 use proc_macro2::{Ident, Span};
-use syn::{synom::Synom, Block, Expr, Pat, Type};
+use syn::{
+    fold::{fold_pat, Fold},
+    synom::Synom,
+    token::Underscore,
+    Block, Expr, Pat, PatWild, Type,
+};
 
+#[derive(Clone)]
 enum BlockOrExpr {
     Block(Block),
     Expr(Expr),
 }
 
+#[derive(Clone)]
 struct ReceiveArm {
     ty:    Type,
     pat:   Pat,
@@ -57,6 +64,24 @@ impl Synom for Receive {
         arms: many0!(syn!(ReceiveArm)) >>
         (Receive { arms })
     ));
+}
+
+// Transforms all potential moves into _ ignorers
+struct PatIgnorer();
+
+impl Fold for PatIgnorer {
+    fn fold_pat(&mut self, p: Pat) -> Pat {
+        use self::Pat::*;
+        match p {
+            Ident(p) => match p.subpat {
+                Some((_at, subpat)) => self.fold_pat(*subpat),
+                None => Wild(PatWild {
+                    underscore_token: Underscore::new(Span::call_site()),
+                }),
+            },
+            p => p,
+        }
+    }
 }
 
 // Being given:
@@ -140,7 +165,7 @@ impl Synom for Receive {
 //  }
 
 #[proc_macro]
-pub fn receive(input: TokenStream) -> TokenStream {
+pub fn receive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let parsed = syn::parse::<Receive>(input).expect(
         "Failed to parse receive! block.
 
@@ -153,6 +178,8 @@ receive! {
 ```
 ",
     );
+
+    // Generate the MatchedArm enum
     let names_and_types = parsed.arms.iter().enumerate().map(|(i, arm)| {
         let name = Ident::new(&format!("Arm{}", i), Span::call_site());
         let ty = arm.ty.clone();
@@ -163,7 +190,56 @@ receive! {
             #(#names_and_types ,)*
         }
     );
+
+    // Generate the inner matches
+    let mut inner_matches = Vec::new();
+    for (i, arm) in parsed.arms.iter().cloned().enumerate() {
+        let ReceiveArm {
+            ty,
+            pat,
+            guard,
+            body,
+        } = arm;
+        let arm_name = Ident::new(&format!("Arm{}", i), Span::call_site());
+        if let Some(guard) = guard {
+            inner_matches.push(quote!(
+                msg = match msg.downcast::<#ty>() {
+                    Ok(msg) => {
+                        let matches = match &mut *msg {
+                            &mut #pat if #guard => true,
+                            _ => false,
+                        };
+                        if matches {
+                            return ::erlust::ReceiveResult::Use(MatchedArm::#arm_name(msg));
+                        }
+                        msg as Box<Any>
+                    },
+                    Err(msg) => msg,
+                };
+            ));
+        } else {
+            let ignoring_pat = fold_pat(&mut PatIgnorer(), pat);
+            inner_matches.push(quote!(
+                msg = match msg.downcast::<#ty>() {
+                    Ok(msg) => {
+                        let matches = match &*msg {
+                            &#ignoring_pat => true,
+                            _ => false,
+                        };
+                        if matches {
+                            return ::erlust::ReceiveResult::Use(MatchedArm::#arm_name(msg));
+                        }
+                        msg as Box<Any>
+                    },
+                    Err(msg) => msg,
+                };
+            ));
+        }
+    }
+
     let expr = quote!(42);
     let res = quote!({ #matched_arm_def #expr });
     res.into()
 }
+
+// TODO: (A) receive_box
