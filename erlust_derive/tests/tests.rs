@@ -10,5 +10,11 @@ fn foo(a: usize) -> usize {
 
 #[test]
 fn non_stupid() {
-    assert_eq!(42, receive!(42));
+    assert_eq!(
+        42,
+        receive!(
+        (usize, String): (1, s) => foo(s),
+        usize: x if bar(x) => { baz(x) }
+    )
+    );
 }
