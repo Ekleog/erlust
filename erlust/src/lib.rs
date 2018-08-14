@@ -27,7 +27,7 @@ use std::{
 pub use futures::{channel::mpsc::SendError, task::SpawnError};
 
 const QUEUE_BUFFER: usize = 64; // TODO: (C) fiddle
-// TODO: (B) Limit waiting queue size too
+                                // TODO: (B) Limit waiting queue size too
 
 type ActorId = usize;
 type LocalMessage = Box<Any + Send + 'static>;
