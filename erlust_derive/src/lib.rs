@@ -4,6 +4,7 @@ extern crate quote;
 extern crate syn;
 
 use proc_macro::TokenStream;
+use proc_macro2::{Ident, Span};
 use syn::{synom::Synom, Block, Expr, Pat, Type};
 
 enum BlockOrExpr {
@@ -152,6 +153,17 @@ receive! {
 ```
 ",
     );
-    let res = quote!{};
+    let names_and_types = parsed.arms.iter().enumerate().map(|(i, arm)| {
+        let name = Ident::new(&format!("Arm{}", i), Span::call_site());
+        let ty = arm.ty.clone();
+        quote!(#name(#ty))
+    });
+    let matched_arm_def = quote!(
+        enum MatchedArm {
+            #(#names_and_types ,)*
+        }
+    );
+    let expr = quote!(42);
+    let res = quote!({ #matched_arm_def #expr });
     res.into()
 }

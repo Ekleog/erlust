@@ -15,6 +15,6 @@ description = "Macros for erlust"
 proc-macro = true
 
 [dependencies]
-proc-macro2 = "0.4"
+proc-macro2 = { version = "0.4", features = [ "nightly" ] }
 quote = "0.6"
 syn = { version = "0.14", features = [ "full" ] }
