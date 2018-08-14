@@ -112,7 +112,7 @@ fn gen_inner_match(i: usize, ty: Type, pat: Pat, guard: TokenStream) -> TokenStr
                 if matches {
                     return ::erlust::ReceiveResult::Use(MatchedArm::#arm_name(msg));
                 }
-                msg as Box<Any>
+                msg as Box<::std::any::Any>
             },
             Err(msg) => msg,
         };
@@ -122,7 +122,7 @@ fn gen_inner_match(i: usize, ty: Type, pat: Pat, guard: TokenStream) -> TokenStr
 fn gen_outer_match_arm(i: usize, pat: Pat, body: BlockOrExpr) -> TokenStream {
     let arm_name = gen_arm_ident(i);
     quote! {
-        #arm_name(msg) => match *msg {
+        MatchedArm::#arm_name(msg) => match *msg {
             #pat => #body,
             _ => unreachable!() // TODO: (B) consider unreachable_unchecked
         },
