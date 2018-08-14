@@ -1,0 +1,20 @@
+cargo-features = ["edition"]
+
+[package]
+name = "erlust_derive"
+edition = "2018"
+version = "0.1.0"
+authors = ["Léo Gaspard <leo@gaspard.io>"]
+license = "MIT"
+categories = ["asynchronous", "concurrency", "rust-patterns"]
+keywords = ["actor", "erlang", "async", "serialization", "futures",
+    "concurrency", "message-passing", "distributed-systems"]
+description = "Macros for erlust"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = "0.4"
+quote = "0.6"
+syn = { version = "0.14", features = [ "full" ] }
