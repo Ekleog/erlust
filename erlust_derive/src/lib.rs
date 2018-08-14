@@ -4,7 +4,7 @@ extern crate quote;
 extern crate syn;
 
 use proc_macro;
-use proc_macro2::{Ident, Span};
+use proc_macro2::{Ident, Span, TokenStream};
 use syn::{
     fold::{fold_pat, Fold},
     synom::Synom,
@@ -81,6 +81,24 @@ impl Fold for PatIgnorer {
             },
             p => p,
         }
+    }
+}
+
+fn gen_inner_match(arm_name: Ident, ty: Type, pat: Pat, guard: TokenStream) -> TokenStream {
+    quote! {
+        msg = match msg.downcast::<#ty>() {
+            Ok(msg) => {
+                let matches = match &mut *msg {
+                    &mut #pat #guard => true,
+                    _ => false,
+                };
+                if matches {
+                    return ::erlust::ReceiveResult::Use(MatchedArm::#arm_name(msg));
+                }
+                msg as Box<Any>
+            },
+            Err(msg) => msg,
+        };
     }
 }
 
@@ -202,38 +220,10 @@ receive! {
         } = arm;
         let arm_name = Ident::new(&format!("Arm{}", i), Span::call_site());
         if let Some(guard) = guard {
-            inner_matches.push(quote!(
-                msg = match msg.downcast::<#ty>() {
-                    Ok(msg) => {
-                        let matches = match &mut *msg {
-                            &mut #pat if #guard => true,
-                            _ => false,
-                        };
-                        if matches {
-                            return ::erlust::ReceiveResult::Use(MatchedArm::#arm_name(msg));
-                        }
-                        msg as Box<Any>
-                    },
-                    Err(msg) => msg,
-                };
-            ));
+            inner_matches.push(gen_inner_match(arm_name, ty, pat, quote!(if #guard)));
         } else {
             let ignoring_pat = fold_pat(&mut PatIgnorer(), pat);
-            inner_matches.push(quote!(
-                msg = match msg.downcast::<#ty>() {
-                    Ok(msg) => {
-                        let matches = match &*msg {
-                            &#ignoring_pat => true,
-                            _ => false,
-                        };
-                        if matches {
-                            return ::erlust::ReceiveResult::Use(MatchedArm::#arm_name(msg));
-                        }
-                        msg as Box<Any>
-                    },
-                    Err(msg) => msg,
-                };
-            ));
+            inner_matches.push(gen_inner_match(arm_name, ty, ignoring_pat, quote!()));
         }
     }
 
