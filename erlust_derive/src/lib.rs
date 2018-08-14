@@ -237,21 +237,22 @@ receive! {
     );
 
     // Generate the inner matches
-    let mut inner_matches = Vec::new();
-    for (i, arm) in parsed.arms.iter().cloned().enumerate() {
+    let inner_matches = parsed.arms.iter().cloned().enumerate().map(|(i, arm)| {
         if let Some(guard) = arm.guard {
-            inner_matches.push(gen_inner_match(i, arm.ty, arm.pat, quote!(if #guard)));
+            gen_inner_match(i, arm.ty, arm.pat, quote!(if #guard))
         } else {
             let ignoring_pat = fold_pat(&mut PatIgnorer(), arm.pat);
-            inner_matches.push(gen_inner_match(i, arm.ty, ignoring_pat, quote!()));
+            gen_inner_match(i, arm.ty, ignoring_pat, quote!())
         }
-    }
+    });
 
     // Generate the outer match's arms
-    let mut outer_match_arms = Vec::new();
-    for (i, arm) in parsed.arms.iter().cloned().enumerate() {
-        outer_match_arms.push(gen_outer_match_arm(i, arm.pat, arm.body));
-    }
+    let outer_match_arms = parsed
+        .arms
+        .iter()
+        .cloned()
+        .enumerate()
+        .map(|(i, arm)| gen_outer_match_arm(i, arm.pat, arm.body));
 
     let expr = quote!(42);
     let res = quote!({ #matched_arm_def #expr });
