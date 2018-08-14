@@ -258,9 +258,9 @@ receive! {
         {
             #arms_def
 
-            match receive(|mut msg| {
+            match ::erlust::receive(|mut msg| {
                 #(#inner_matches)*
-                Skip(msg)
+                ::erlust::ReceiveResult::Skip(msg)
             }) {
                 #(#outer_match_arms)*
             }
