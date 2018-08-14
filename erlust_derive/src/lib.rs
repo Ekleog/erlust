@@ -212,18 +212,17 @@ receive! {
     // Generate the inner matches
     let mut inner_matches = Vec::new();
     for (i, arm) in parsed.arms.iter().cloned().enumerate() {
-        let ReceiveArm {
-            ty,
-            pat,
-            guard,
-            body,
-        } = arm;
         let arm_name = Ident::new(&format!("Arm{}", i), Span::call_site());
-        if let Some(guard) = guard {
-            inner_matches.push(gen_inner_match(arm_name, ty, pat, quote!(if #guard)));
+        if let Some(guard) = arm.guard {
+            inner_matches.push(gen_inner_match(
+                arm_name,
+                arm.ty,
+                arm.pat,
+                quote!(if #guard),
+            ));
         } else {
-            let ignoring_pat = fold_pat(&mut PatIgnorer(), pat);
-            inner_matches.push(gen_inner_match(arm_name, ty, ignoring_pat, quote!()));
+            let ignoring_pat = fold_pat(&mut PatIgnorer(), arm.pat);
+            inner_matches.push(gen_inner_match(arm_name, arm.ty, ignoring_pat, quote!()));
         }
     }
 
