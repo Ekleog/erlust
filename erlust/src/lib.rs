@@ -151,19 +151,17 @@ impl Pid {
     }
 }
 
-#[doc(hidden)]
-pub enum __ReceiveResult<Ret> {
-    Ignored(LocalMessage),
-    Used(Ret),
+pub enum ReceiveResult<Ret> {
+    Use(Ret),
+    Skip(LocalMessage),
 }
 
-#[doc(hidden)]
-pub async fn __receive<HandleFn, Fut, Ret>(handle: HandleFn) -> Ret
+pub async fn receive<HandleFn, Fut, Ret>(handle: HandleFn) -> Ret
 where
-    Fut: Future<Output = __ReceiveResult<Ret>>,
+    Fut: Future<Output = ReceiveResult<Ret>>,
     HandleFn: Fn(LocalMessage) -> Fut,
 {
-    use self::__ReceiveResult::*;
+    use self::ReceiveResult::*;
 
     // This `expect` shouldn't trigger, because `LocalChannelUpdater` should always
     // keep `MY_CHANNEL` task-local. As such, the only moment where it should be
@@ -178,11 +176,11 @@ where
     let waitlist = mem::replace(&mut chan.waiting, LinkedList::new());
     for msg in waitlist {
         match await!(handle(msg)) {
-            Used(ret) => {
+            Use(ret) => {
                 MY_CHANNEL.with(|c| *c.borrow_mut() = Some(chan));
                 return ret;
             }
-            Ignored(msg) => {
+            Skip(msg) => {
                 chan.waiting.push_back(msg);
             }
         }
@@ -197,11 +195,11 @@ where
         // once the actor has been dropped, so this should be safe.
         let msg = await!(chan.receiver.next()).expect("Called receive after the actor was dropped");
         match await!(handle(msg)) {
-            Used(ret) => {
+            Use(ret) => {
                 MY_CHANNEL.with(|c| *c.borrow_mut() = Some(chan));
                 return ret;
             }
-            Ignored(msg) => {
+            Skip(msg) => {
                 chan.waiting.push_back(msg);
             }
         }
