@@ -230,7 +230,7 @@ receive! {
         let ty = arm.ty.clone();
         quote!(#name(#ty))
     });
-    let matched_arm_def = quote!(
+    let arms_def = quote!(
         enum MatchedArm {
             #(#names_and_types ,)*
         }
@@ -254,8 +254,18 @@ receive! {
         .enumerate()
         .map(|(i, arm)| gen_outer_match_arm(i, arm.pat, arm.body));
 
-    let expr = quote!(42);
-    let res = quote!({ #matched_arm_def #expr });
+    let res = quote! {
+        {
+            #arms_def
+
+            match receive(|mut msg| {
+                #(#inner_matches)*
+                Skip(msg)
+            }) {
+                #(#outer_match_arms)*
+            }
+        }
+    };
     res.into()
 }
 
