@@ -5,6 +5,7 @@ extern crate syn;
 
 use proc_macro;
 use proc_macro2::{Ident, Span, TokenStream};
+use quote::ToTokens;
 use syn::{
     fold::{fold_pat, Fold},
     synom::Synom,
@@ -16,6 +17,16 @@ use syn::{
 enum BlockOrExpr {
     Block(Block),
     Expr(Expr),
+}
+
+impl ToTokens for BlockOrExpr {
+    fn to_tokens(&self, t: &mut TokenStream) {
+        use self::BlockOrExpr::*;
+        match self {
+            Block(b) => b.to_tokens(t),
+            Expr(e) => e.to_tokens(t),
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -84,7 +95,13 @@ impl Fold for PatIgnorer {
     }
 }
 
-fn gen_inner_match(arm_name: Ident, ty: Type, pat: Pat, guard: TokenStream) -> TokenStream {
+fn gen_arm_ident(i: usize) -> Ident {
+    // TODO: (B) Make this Span::def_site h:proc-macro-extras
+    Ident::new(&format!("Arm{}", i), Span::call_site())
+}
+
+fn gen_inner_match(i: usize, ty: Type, pat: Pat, guard: TokenStream) -> TokenStream {
+    let arm_name = gen_arm_ident(i);
     quote! {
         msg = match msg.downcast::<#ty>() {
             Ok(msg) => {
@@ -99,6 +116,16 @@ fn gen_inner_match(arm_name: Ident, ty: Type, pat: Pat, guard: TokenStream) -> T
             },
             Err(msg) => msg,
         };
+    }
+}
+
+fn gen_outer_match_arm(i: usize, pat: Pat, body: BlockOrExpr) -> TokenStream {
+    let arm_name = gen_arm_ident(i);
+    quote! {
+        #arm_name(msg) => match *msg {
+            #pat => #body,
+            _ => unreachable!() // TODO: (B) consider unreachable_unchecked
+        },
     }
 }
 
@@ -212,18 +239,18 @@ receive! {
     // Generate the inner matches
     let mut inner_matches = Vec::new();
     for (i, arm) in parsed.arms.iter().cloned().enumerate() {
-        let arm_name = Ident::new(&format!("Arm{}", i), Span::call_site());
         if let Some(guard) = arm.guard {
-            inner_matches.push(gen_inner_match(
-                arm_name,
-                arm.ty,
-                arm.pat,
-                quote!(if #guard),
-            ));
+            inner_matches.push(gen_inner_match(i, arm.ty, arm.pat, quote!(if #guard)));
         } else {
             let ignoring_pat = fold_pat(&mut PatIgnorer(), arm.pat);
-            inner_matches.push(gen_inner_match(arm_name, arm.ty, ignoring_pat, quote!()));
+            inner_matches.push(gen_inner_match(i, arm.ty, ignoring_pat, quote!()));
         }
+    }
+
+    // Generate the outer match's arms
+    let mut outer_match_arms = Vec::new();
+    for (i, arm) in parsed.arms.iter().cloned().enumerate() {
+        outer_match_arms.push(gen_outer_match_arm(i, arm.pat, arm.body));
     }
 
     let expr = quote!(42);
