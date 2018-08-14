@@ -17,7 +17,7 @@ serde = "1.0"
 
 [dependencies.futures-preview]
 git = "https://github.com/rust-lang-nursery/futures-rs"
-rev = "1b6e8150e7339478e73b87ff3d616010bdb1ab0b"
+rev = "c02ec75a155485ff4b50f21205b6a462851b08e1"
 
 [dev-dependencies]
 serde_derive = "1.0"
