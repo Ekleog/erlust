@@ -211,10 +211,6 @@ where
 // TODO: (A) add tag() for trait Message,  and custom_derive to fill it in
 // (but do not default to the struct type, require explicit tag)
 
-// TODO: (A) match just refuses to bind by-move in guard, this'd simplify
-// TODO: (B) Make semantics of receive{,_box}! precise wrt. borrowing and owning
-// TODO: (B) Make sure receive{,_box}! accept exactly the same syntax as match
-
 #[cfg(test)]
 mod tests {
     use super::*;
