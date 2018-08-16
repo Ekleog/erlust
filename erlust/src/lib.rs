@@ -131,7 +131,9 @@ where
 // #[serde(deny_unknown_fields)] is a bare minimum, and it's recommended
 // to include a struct name and maybe even version field in the serialized
 // data.
-pub trait Message: 'static + Send + Serialize + for<'de> Deserialize<'de> {}
+pub trait Message: 'static + Send + Serialize + for<'de> Deserialize<'de> {
+    fn tag() -> &'static str;
+}
 
 pub struct Pid {
     // TODO: (A) Cross-process / over-the-network messages
@@ -207,9 +209,6 @@ where
     }
 }
 
-// TODO: (A) add tag() for trait Message,  and custom_derive to fill it in
-// (but do not default to the struct type, require explicit tag)
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -218,7 +217,11 @@ mod tests {
     struct TestMsg {
         foo: String,
     }
-    impl Message for TestMsg {}
+    impl Message for TestMsg {
+        fn tag() -> &'static str {
+            "test"
+        }
+    }
 
     // TODO: (B) Make this a proper test once https://github.com/rust-lang/rust/issues/53259 solved
     fn check_compiles() {
