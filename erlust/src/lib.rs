@@ -17,7 +17,6 @@ extern crate serde_derive;
 use futures::{channel::mpsc, prelude::*};
 use serde::{Deserialize, Serialize};
 use std::{
-    any::Any,
     cell::RefCell,
     collections::{HashMap, LinkedList},
     mem::{self, PinMut},
@@ -30,7 +29,7 @@ const QUEUE_BUFFER: usize = 64; // TODO: (C) fiddle
                                 // TODO: (B) Limit waiting queue size too
 
 type ActorId = usize;
-type LocalMessage = Box<Any + Send + 'static>;
+type LocalMessage = Box<Send + 'static>;
 type LocalSender = mpsc::Sender<LocalMessage>;
 type LocalReceiver = mpsc::Receiver<LocalMessage>;
 
