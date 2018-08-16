@@ -123,7 +123,7 @@ where
     Fut: Future<Output = ()> + Send + 'static,
 {
     let task = LocalChannelUpdater::new(fut);
-    future::lazy(move |cx| cx.executor().spawn(task))
+    future::lazy(move |cx| cx.spawner().spawn(task))
 }
 
 // Warning: the Deserialize implementation should be implemented
