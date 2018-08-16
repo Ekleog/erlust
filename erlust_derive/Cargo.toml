@@ -17,7 +17,10 @@ proc-macro = true
 [dependencies]
 proc-macro2 = { version = "0.4", features = [ "nightly" ] }
 quote = "0.6"
-syn = { version = "0.14", features = [ "fold", "full" ] }
+syn = { version = "0.14", features = [ "extra-traits", "fold", "full" ] }
+# TODO: (B) remove extra-traits
 
 [dev-dependencies]
 erlust = { path = "../erlust" }
+serde = "1.0"
+serde_derive = "1.0"

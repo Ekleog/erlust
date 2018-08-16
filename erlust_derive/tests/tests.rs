@@ -1,6 +1,9 @@
 #![feature(proc_macro_non_items)]
 
+#[macro_use]
 extern crate erlust_derive;
+#[macro_use]
+extern crate serde_derive;
 
 use erlust_derive::receive;
 
@@ -34,4 +37,10 @@ fn non_stupid() {
             usize: x if baz(x) => quux(x),
         )
     );
+}
+
+#[derive(Deserialize, Message, Serialize)]
+#[erlust_tag = "hello"]
+struct FooBar {
+    hello: usize,
 }

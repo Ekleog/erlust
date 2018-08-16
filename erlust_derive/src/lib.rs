@@ -1,3 +1,5 @@
+#![feature(proc_macro_diagnostic)]
+
 #[macro_use]
 extern crate quote;
 #[macro_use]
@@ -8,10 +10,53 @@ use proc_macro2::{Ident, Span, TokenStream};
 use quote::ToTokens;
 use syn::{
     fold::{fold_pat, Fold},
+    spanned::Spanned,
     synom::Synom,
     token::Underscore,
-    Block, Expr, Pat, PatWild, Type,
+    Block, DeriveInput, Expr, Meta, Pat, PatWild, Type,
 };
+
+// derive(Message)
+
+#[proc_macro_derive(Message, attributes(erlust_tag))]
+pub fn derive_message(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let s = syn::parse::<DeriveInput>(input).unwrap();
+    let mut tag = None;
+    for attr in s.attrs {
+        if let Some(Meta::NameValue(m)) = attr.interpret_meta() {
+            if m.ident == "erlust_tag" {
+                if tag.is_some() {
+                    attr.span()
+                        .unstable()
+                        .error("Used the `erlust_tag` attribute multiple times")
+                        .emit();
+                    return proc_macro::TokenStream::new();
+                }
+                tag = Some(m.lit);
+            }
+        }
+    }
+    if let Some(tag) = tag {
+        let name = s.ident;
+        let res = quote! {
+            impl ::erlust::Message for #name {
+                fn tag() -> &'static str {
+                    #tag
+                }
+            }
+        };
+        res.into()
+    } else {
+        s.ident
+            .span()
+            .unstable()
+            .error("Missing `erlust_tag` attribute")
+            .emit();
+        return proc_macro::TokenStream::new();
+    }
+}
+
+// receive!
 
 #[derive(Clone)]
 enum BlockOrExpr {
@@ -211,6 +256,7 @@ fn gen_outer_match_arm(i: usize, pat: Pat, body: BlockOrExpr) -> TokenStream {
 
 #[proc_macro]
 pub fn receive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    // TODO: (B) Give nicer parsing errors, pinpointing the error, etc.
     let parsed = syn::parse::<Receive>(input).expect(
         "Failed to parse receive! block.
 
