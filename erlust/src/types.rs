@@ -1,5 +1,6 @@
 use futures::channel::mpsc;
 use serde::{Deserialize, Serialize};
+use std::any::Any;
 
 // Warning: the Deserialize implementation should be implemented
 // in such a way that it fails if anything looks fishy in the message.
@@ -8,7 +9,7 @@ use serde::{Deserialize, Serialize};
 // data.
 //
 // Message is not object-safe, thus cannot be used for LocalMessage.
-pub trait Message: 'static + Send + Serialize + for<'de> Deserialize<'de> {
+pub trait Message: 'static + Any + Send + Serialize + for<'de> Deserialize<'de> {
     fn tag() -> &'static str;
 }
 
