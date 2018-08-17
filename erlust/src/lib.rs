@@ -15,52 +15,22 @@ extern crate serde;
 extern crate serde_derive;
 
 mod local_channel;
+mod local_channel_updater;
 mod local_senders;
 mod types;
 
 use futures::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::mem::{self, PinMut};
+use std::mem;
 
 use self::{
     local_channel::{LocalChannel, MY_CHANNEL},
+    local_channel_updater::LocalChannelUpdater,
     local_senders::LOCAL_SENDERS,
     types::{ActorId, LocalMessage, LocalReceiver, LocalSender},
 };
 
 pub use futures::{channel::mpsc::SendError, task::SpawnError};
-
-struct LocalChannelUpdater<Fut: Future<Output = ()>> {
-    channel: Option<LocalChannel>,
-    fut:     Fut,
-}
-
-impl<Fut: Future<Output = ()>> LocalChannelUpdater<Fut> {
-    fn new(fut: Fut) -> LocalChannelUpdater<Fut> {
-        LocalChannelUpdater {
-            channel: Some(LocalChannel::new()),
-            fut,
-        }
-    }
-}
-
-impl<Fut: Future<Output = ()>> Future for LocalChannelUpdater<Fut> {
-    type Output = ();
-
-    fn poll(self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
-        MY_CHANNEL.with(|my_channel| {
-            // TODO: (B) Check this unsafe is actually safe and comment here on why
-            // TODO: (B) Use scoped-tls?
-            unsafe {
-                let this = PinMut::get_mut_unchecked(self);
-                my_channel.replace(this.channel.take());
-                let res = PinMut::new_unchecked(&mut this.fut).poll(cx);
-                this.channel = my_channel.replace(None);
-                res
-            }
-        })
-    }
-}
 
 pub fn spawn<Fut>(fut: Fut) -> impl Future<Output = Result<(), SpawnError>>
 where
