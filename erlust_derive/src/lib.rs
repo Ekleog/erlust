@@ -275,9 +275,9 @@ receive! {
 
     // Generate the MatchedArm enum
     let names_and_types = parsed.arms.iter().enumerate().map(|(i, arm)| {
-        let name = Ident::new(&format!("Arm{}", i), Span::call_site());
+        let name = gen_arm_ident(i);
         let ty = arm.ty.clone();
-        quote!(#name(#ty))
+        quote!(#name(Box<#ty>))
     });
     let arms_def = quote!(
         enum MatchedArm {
