@@ -27,18 +27,20 @@ fn quux(x: usize) -> String {
     format!("{}", x)
 }
 
+// TODO: (B) this example is actually stupid, its name refers to the macro
 #[test]
 fn non_stupid() {
     async {
         assert_eq!(
-            42,
+            "test",
             receive!(
                 (usize, String): (1, ref x) if foo(x) => bar(x),
                 (usize, String): (2, x) => foobar(x),
                 usize: x if baz(x) => quux(x),
             )
         );
-    }.wait();
+    }
+        .wait();
 }
 
 #[derive(Deserialize, Message, Serialize)]

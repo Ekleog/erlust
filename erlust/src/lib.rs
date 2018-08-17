@@ -65,7 +65,7 @@ lazy_static! {
 
 struct LocalChannel {
     actor_id: ActorId,
-    sender: LocalSender,
+    sender:   LocalSender,
     receiver: LocalReceiver,
     waiting:  VecDeque<LocalMessage>,
 }
@@ -141,7 +141,7 @@ pub struct Pid {
     // TODO: (A) Cross-process / over-the-network messages
     // TODO: (A) Add sender of the message to each received message
     actor_id: ActorId,
-    sender: Option<LocalSender>,
+    sender:   Option<LocalSender>,
 }
 
 impl Pid {
