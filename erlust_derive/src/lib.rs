@@ -7,17 +7,13 @@ extern crate syn;
 
 use proc_macro;
 use proc_macro2::{Ident, Span, TokenStream};
-use syn::{
-    fold::{fold_pat, Fold},
-    synom::Synom,
-    token::Underscore,
-    Block, DeriveInput, Expr, Pat, PatWild, Type,
-};
+use syn::{fold::fold_pat, synom::Synom, Block, DeriveInput, Expr, Pat, Type};
 
 mod block_or_expr;
 mod derive_message;
+mod pat_ignorer;
 
-use self::block_or_expr::BlockOrExpr;
+use self::{block_or_expr::BlockOrExpr, pat_ignorer::PatIgnorer};
 
 #[proc_macro_derive(Message, attributes(erlust_tag))]
 pub fn derive_message_macro(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
@@ -73,24 +69,6 @@ impl Synom for Receive {
         arms: many0!(syn!(ReceiveArm)) >>
         (Receive { arms })
     ));
-}
-
-// Transforms all potential moves into _ ignorers
-struct PatIgnorer();
-
-impl Fold for PatIgnorer {
-    fn fold_pat(&mut self, p: Pat) -> Pat {
-        use self::Pat::*;
-        match p {
-            Ident(p) => match p.subpat {
-                Some((_at, subpat)) => self.fold_pat(*subpat),
-                None => Wild(PatWild {
-                    underscore_token: Underscore::new(Span::call_site()),
-                }),
-            },
-            p => p,
-        }
-    }
 }
 
 fn gen_arm_ident(i: usize) -> Ident {
