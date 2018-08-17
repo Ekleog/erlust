@@ -39,8 +39,7 @@ fn non_stupid() {
                 usize: x if baz(x) => quux(x),
             )
         );
-    }
-        .wait();
+    };
 }
 
 #[derive(Deserialize, Message, Serialize)]
