@@ -7,7 +7,6 @@ extern crate syn;
 
 use proc_macro;
 use proc_macro2::{Ident, Span, TokenStream};
-use quote::ToTokens;
 use syn::{
     fold::{fold_pat, Fold},
     synom::Synom,
@@ -15,7 +14,10 @@ use syn::{
     Block, DeriveInput, Expr, Pat, PatWild, Type,
 };
 
+mod block_or_expr;
 mod derive_message;
+
+use self::block_or_expr::BlockOrExpr;
 
 #[proc_macro_derive(Message, attributes(erlust_tag))]
 pub fn derive_message_macro(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
@@ -24,22 +26,6 @@ pub fn derive_message_macro(input: proc_macro::TokenStream) -> proc_macro::Token
 }
 
 // receive!
-
-#[derive(Clone)]
-enum BlockOrExpr {
-    Block(Block),
-    Expr(Expr),
-}
-
-impl ToTokens for BlockOrExpr {
-    fn to_tokens(&self, t: &mut TokenStream) {
-        use self::BlockOrExpr::*;
-        match self {
-            Block(b) => b.to_tokens(t),
-            Expr(e) => e.to_tokens(t),
-        }
-    }
-}
 
 #[derive(Clone)]
 struct ReceiveArm {
