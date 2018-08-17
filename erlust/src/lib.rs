@@ -21,7 +21,6 @@ mod spawn;
 mod types;
 
 use futures::prelude::*;
-use serde::{Deserialize, Serialize};
 use std::mem;
 
 use self::{
@@ -33,16 +32,7 @@ use self::{
 
 pub use futures::{channel::mpsc::SendError, task::SpawnError};
 
-pub use self::spawn::spawn;
-
-// Warning: the Deserialize implementation should be implemented
-// in such a way that it fails if anything looks fishy in the message.
-// #[serde(deny_unknown_fields)] is a bare minimum, and it's recommended
-// to include a struct name and maybe even version field in the serialized
-// data.
-pub trait Message: 'static + Send + Serialize + for<'de> Deserialize<'de> {
-    fn tag() -> &'static str;
-}
+pub use self::{spawn::spawn, types::Message};
 
 pub struct Pid {
     // TODO: (A) Cross-process / over-the-network messages
