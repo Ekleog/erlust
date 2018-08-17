@@ -1,4 +1,4 @@
-#![feature(async_await, proc_macro_non_items)]
+#![feature(async_await, await_macro, proc_macro_non_items)]
 
 #[macro_use]
 extern crate erlust_derive;
@@ -29,14 +29,16 @@ fn quux(x: usize) -> String {
 
 #[test]
 fn non_stupid() {
-    assert_eq!(
-        42,
-        receive!(
-            (usize, String): (1, ref x) if foo(x) => bar(x),
-            (usize, String): (2, x) => foobar(x),
-            usize: x if baz(x) => quux(x),
-        )
-    );
+    async {
+        assert_eq!(
+            42,
+            receive!(
+                (usize, String): (1, ref x) if foo(x) => bar(x),
+                (usize, String): (2, x) => foobar(x),
+                usize: x if baz(x) => quux(x),
+            )
+        );
+    }.wait();
 }
 
 #[derive(Deserialize, Message, Serialize)]

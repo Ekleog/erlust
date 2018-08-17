@@ -196,7 +196,7 @@ fn gen_outer_match_arm(i: usize, pat: Pat, body: BlockOrExpr) -> TokenStream {
 //      Arm2(Box<(usize, String)>),
 //      Arm3(Box<usize>),
 //  }
-//  match receive(async move |mut msg: LocalMessage| {
+//  match await!(receive(async move |mut msg: LocalMessage| {
 //      msg = match msg.downcast::<(usize, String)>() {
 //          Ok(res) => {
 //  [has match guard, thus cannot move, thus mutable borrow]
@@ -239,7 +239,7 @@ fn gen_outer_match_arm(i: usize, pat: Pat, body: BlockOrExpr) -> TokenStream {
 //          },
 //      };
 //      Skip(msg)
-//  }) {
+//  })) {
 //      Arm1(msg) => match *msg {
 //          (1, ref x) => bar(x),
 //          _ => unreachable!(),
@@ -307,10 +307,10 @@ receive! {
         {
             #arms_def
 
-            match ::erlust::receive(async move |mut msg| {
+            match await!(::erlust::receive(async move |mut msg| {
                 #(#inner_matches)*
                 ::erlust::ReceiveResult::Skip(msg)
-            }) {
+            })) {
                 #(#outer_match_arms)*
             }
         }
