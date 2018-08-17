@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 // #[serde(deny_unknown_fields)] is a bare minimum, and it's recommended
 // to include a struct name and maybe even version field in the serialized
 // data.
+//
+// Message is not object-safe, thus cannot be used for LocalMessage.
 pub trait Message: 'static + Send + Serialize + for<'de> Deserialize<'de> {
     fn tag() -> &'static str;
 }
