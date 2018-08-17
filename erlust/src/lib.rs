@@ -14,14 +14,17 @@ extern crate serde;
 #[macro_use]
 extern crate serde_derive;
 
+mod local_senders;
+
 use futures::{channel::mpsc, prelude::*};
 use serde::{Deserialize, Serialize};
 use std::{
     cell::RefCell,
-    collections::{HashMap, VecDeque},
+    collections::VecDeque,
     mem::{self, PinMut},
-    sync::RwLock,
 };
+
+use self::local_senders::LOCAL_SENDERS;
 
 pub use futures::{channel::mpsc::SendError, task::SpawnError};
 
@@ -32,36 +35,6 @@ type ActorId = usize;
 type LocalMessage = Box<Send + 'static>;
 type LocalSender = mpsc::Sender<LocalMessage>;
 type LocalReceiver = mpsc::Receiver<LocalMessage>;
-
-struct LocalSenders {
-    next_actor_id: ActorId,
-    map: HashMap<ActorId, LocalSender>,
-}
-
-impl LocalSenders {
-    fn new() -> LocalSenders {
-        LocalSenders {
-            next_actor_id: 0,
-            map: HashMap::new(),
-        }
-    }
-
-    fn allocate(&mut self, sender: LocalSender) -> ActorId {
-        let actor_id = self.next_actor_id;
-        // TODO: (C) try to handle gracefully the overflow case
-        self.next_actor_id = self.next_actor_id.checked_add(1).unwrap();
-        self.map.insert(actor_id, sender);
-        actor_id
-    }
-
-    fn get(&self, actor_id: ActorId) -> Option<LocalSender> {
-        self.map.get(&actor_id).map(|s| s.clone())
-    }
-}
-
-lazy_static! {
-    static ref LOCAL_SENDERS: RwLock<LocalSenders> = RwLock::new(LocalSenders::new());
-}
 
 struct LocalChannel {
     actor_id: ActorId,
@@ -238,8 +211,5 @@ mod tests {
         }
     }
 
-    // TODO: (B) Make this a proper test once https://github.com/rust-lang/rust/issues/53259 solved
-    fn check_compiles() {
-        // TODO: (A) Add receive! / receive_box! tests
-    }
+    // TODO: (A) Add receive! / receive_box! tests
 }
