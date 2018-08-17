@@ -17,6 +17,7 @@ extern crate serde_derive;
 mod local_channel;
 mod local_channel_updater;
 mod local_senders;
+mod pid;
 mod spawn;
 mod types;
 
@@ -32,35 +33,7 @@ use self::{
 
 pub use futures::{channel::mpsc::SendError, task::SpawnError};
 
-pub use self::{spawn::spawn, types::Message};
-
-pub struct Pid {
-    // TODO: (A) Cross-process / over-the-network messages
-    // TODO: (A) Add sender of the message to each received message
-    actor_id: ActorId,
-    sender:   Option<LocalSender>,
-}
-
-impl Pid {
-    pub fn me() -> Pid {
-        let (actor_id, sender) = MY_CHANNEL.with(|c| {
-            let cell = c.borrow();
-            let chan = cell.as_ref().unwrap();
-            (chan.actor_id, Some(chan.sender.clone()))
-        });
-        Pid { actor_id, sender }
-    }
-
-    pub async fn send<M: Message>(&mut self, msg: Box<M>) -> Result<(), SendError> {
-        if let Some(ref mut sender) = self.sender {
-            await!(sender.send(msg as LocalMessage))
-        } else {
-            // TODO: (C) Check these `.unwrap()` are actually sane
-            let mut sender = LOCAL_SENDERS.read().unwrap().get(self.actor_id).unwrap();
-            await!(sender.send(msg as LocalMessage))
-        }
-    }
-}
+pub use self::{pid::Pid, spawn::spawn, types::Message};
 
 pub enum ReceiveResult<Ret> {
     Use(Ret),
