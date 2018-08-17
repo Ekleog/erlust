@@ -14,51 +14,21 @@ extern crate serde;
 #[macro_use]
 extern crate serde_derive;
 
+mod local_channel;
 mod local_senders;
 mod types;
 
-use futures::{channel::mpsc, prelude::*};
+use futures::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::{
-    cell::RefCell,
-    collections::VecDeque,
-    mem::{self, PinMut},
-};
+use std::mem::{self, PinMut};
 
 use self::{
+    local_channel::{LocalChannel, MY_CHANNEL},
     local_senders::LOCAL_SENDERS,
     types::{ActorId, LocalMessage, LocalReceiver, LocalSender},
 };
 
 pub use futures::{channel::mpsc::SendError, task::SpawnError};
-
-const QUEUE_BUFFER: usize = 64; // TODO: (C) fiddle
-                                // TODO: (B) Limit waiting queue size too
-
-struct LocalChannel {
-    actor_id: ActorId,
-    sender:   LocalSender,
-    receiver: LocalReceiver,
-    waiting:  VecDeque<LocalMessage>,
-}
-
-impl LocalChannel {
-    fn new() -> LocalChannel {
-        let (sender, receiver) = mpsc::channel(QUEUE_BUFFER);
-        // TODO: (A) make async (qutex + change in my task_local handler) h:https://github.com/Amanieu/parking_lot/issues/86
-        let actor_id = LOCAL_SENDERS.write().unwrap().allocate(sender.clone());
-        LocalChannel {
-            actor_id,
-            sender,
-            receiver,
-            waiting: VecDeque::new(),
-        }
-    }
-}
-
-thread_local! {
-    static MY_CHANNEL: RefCell<Option<LocalChannel>> = RefCell::new(None);
-}
 
 struct LocalChannelUpdater<Fut: Future<Output = ()>> {
     channel: Option<LocalChannel>,
