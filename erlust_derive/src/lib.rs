@@ -196,7 +196,7 @@ fn gen_outer_match_arm(i: usize, pat: Pat, body: BlockOrExpr) -> TokenStream {
 //      Arm2(Box<(usize, String)>),
 //      Arm3(Box<usize>),
 //  }
-//  match receive(|mut msg: LocalMessage| {
+//  match receive(async move |mut msg: LocalMessage| {
 //      msg = match msg.downcast::<(usize, String)>() {
 //          Ok(res) => {
 //  [has match guard, thus cannot move, thus mutable borrow]
@@ -254,6 +254,9 @@ fn gen_outer_match_arm(i: usize, pat: Pat, body: BlockOrExpr) -> TokenStream {
 //      },
 //  }
 
+// Note: the match guards will be evaluated in an `async move` closure, hence
+// it isn't possible to early-return from there, and every non-Copy local variable
+// used in guards will be moved. In exchange, it is possible to call await!().
 #[proc_macro]
 pub fn receive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     // TODO: (B) Give nicer parsing errors, pinpointing the error, etc.
@@ -304,7 +307,7 @@ receive! {
         {
             #arms_def
 
-            match ::erlust::receive(|mut msg| {
+            match ::erlust::receive(async move |mut msg| {
                 #(#inner_matches)*
                 ::erlust::ReceiveResult::Skip(msg)
             }) {
