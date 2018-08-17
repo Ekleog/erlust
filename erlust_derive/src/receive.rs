@@ -171,7 +171,7 @@ fn gen_outer_match_arm(i: usize, pat: Pat, body: BlockOrExpr) -> TokenStream {
 // await!().
 pub fn receive(input: TokenStream) -> TokenStream {
     // TODO: (B) Give nicer parsing errors, pinpointing the error, etc.
-    let parsed = syn::parse::<Receive>(input).expect(
+    let parsed = syn::parse2::<Receive>(input).expect(
         "Failed to parse receive! block.
 
 Reminder: syntax is as follows:

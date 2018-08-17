@@ -1,7 +1,9 @@
 use proc_macro2::TokenStream;
 use syn::{spanned::Spanned, DeriveInput, Meta};
 
-pub fn derive_message(s: DeriveInput) -> TokenStream {
+pub fn derive_message(input: TokenStream) -> TokenStream {
+    let s = syn::parse2::<DeriveInput>(input).unwrap();
+
     let mut tag = None;
     for attr in s.attrs {
         if let Some(Meta::NameValue(m)) = attr.interpret_meta() {
@@ -17,6 +19,7 @@ pub fn derive_message(s: DeriveInput) -> TokenStream {
             }
         }
     }
+
     if let Some(tag) = tag {
         let name = s.ident;
         let res = quote! {

@@ -11,12 +11,10 @@ mod pat_ignorer;
 mod receive;
 
 use proc_macro::TokenStream;
-use syn::DeriveInput;
 
 #[proc_macro_derive(Message, attributes(erlust_tag))]
 pub fn derive_message_macro(input: TokenStream) -> TokenStream {
-    let inp = syn::parse::<DeriveInput>(input).unwrap();
-    derive_message::derive_message(inp).into()
+    derive_message::derive_message(input.into()).into()
 }
 
 #[proc_macro]
