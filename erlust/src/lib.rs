@@ -65,6 +65,7 @@ lazy_static! {
 
 struct LocalChannel {
     actor_id: ActorId,
+    sender: LocalSender,
     receiver: LocalReceiver,
     waiting:  VecDeque<LocalMessage>,
 }
@@ -73,9 +74,10 @@ impl LocalChannel {
     fn new() -> LocalChannel {
         let (sender, receiver) = mpsc::channel(QUEUE_BUFFER);
         // TODO: (A) make async (qutex + change in my task_local handler) h:https://github.com/Amanieu/parking_lot/issues/86
-        let actor_id = LOCAL_SENDERS.write().unwrap().allocate(sender);
+        let actor_id = LOCAL_SENDERS.write().unwrap().allocate(sender.clone());
         LocalChannel {
             actor_id,
+            sender,
             receiver,
             waiting: VecDeque::new(),
         }
@@ -138,21 +140,28 @@ pub trait Message: 'static + Send + Serialize + for<'de> Deserialize<'de> {
 pub struct Pid {
     // TODO: (A) Cross-process / over-the-network messages
     // TODO: (A) Add sender of the message to each received message
-    // TODO: (A) Add Option<Sender> field for local messages
     actor_id: ActorId,
+    sender: Option<LocalSender>,
 }
 
 impl Pid {
     pub fn me() -> Pid {
-        Pid {
-            actor_id: MY_CHANNEL.with(|c| c.borrow().as_ref().unwrap().actor_id),
-        }
+        let (actor_id, sender) = MY_CHANNEL.with(|c| {
+            let cell = c.borrow();
+            let chan = cell.as_ref().unwrap();
+            (chan.actor_id, Some(chan.sender.clone()))
+        });
+        Pid { actor_id, sender }
     }
 
-    pub async fn send<M: Message>(&self, msg: Box<M>) -> Result<(), SendError> {
-        // TODO: (C) Check these `.unwrap()` are actually sane
-        let mut sender = LOCAL_SENDERS.read().unwrap().get(self.actor_id).unwrap();
-        await!(sender.send(msg as LocalMessage))
+    pub async fn send<M: Message>(&mut self, msg: Box<M>) -> Result<(), SendError> {
+        if let Some(ref mut sender) = self.sender {
+            await!(sender.send(msg as LocalMessage))
+        } else {
+            // TODO: (C) Check these `.unwrap()` are actually sane
+            let mut sender = LOCAL_SENDERS.read().unwrap().get(self.actor_id).unwrap();
+            await!(sender.send(msg as LocalMessage))
+        }
     }
 }
 
