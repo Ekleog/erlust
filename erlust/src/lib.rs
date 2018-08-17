@@ -18,7 +18,7 @@ use futures::{channel::mpsc, prelude::*};
 use serde::{Deserialize, Serialize};
 use std::{
     cell::RefCell,
-    collections::{HashMap, LinkedList},
+    collections::{HashMap, VecDeque},
     mem::{self, PinMut},
     sync::RwLock,
 };
@@ -66,18 +66,18 @@ lazy_static! {
 struct LocalChannel {
     actor_id: ActorId,
     receiver: LocalReceiver,
-    waiting:  LinkedList<LocalMessage>, // TODO: (C) Evaluate whether Vec wouldn't be better
+    waiting:  VecDeque<LocalMessage>,
 }
 
 impl LocalChannel {
     fn new() -> LocalChannel {
         let (sender, receiver) = mpsc::channel(QUEUE_BUFFER);
-        // TODO: (A) make async (qutex + change in my task_local handler)
+        // TODO: (A) make async (qutex + change in my task_local handler) h:https://github.com/Amanieu/parking_lot/issues/86
         let actor_id = LOCAL_SENDERS.write().unwrap().allocate(sender);
         LocalChannel {
             actor_id,
             receiver,
-            waiting: LinkedList::new(),
+            waiting: VecDeque::new(),
         }
     }
 }
@@ -137,6 +137,8 @@ pub trait Message: 'static + Send + Serialize + for<'de> Deserialize<'de> {
 
 pub struct Pid {
     // TODO: (A) Cross-process / over-the-network messages
+    // TODO: (A) Add sender of the message to each received message
+    // TODO: (A) Add Option<Sender> field for local messages
     actor_id: ActorId,
 }
 
@@ -175,16 +177,18 @@ where
         .expect("Called receive inside receive");;
 
     // First, attempt to find a message in waiting list
-    // TODO: (B) Do this running-through-the-list in-place
-    let waitlist = mem::replace(&mut chan.waiting, LinkedList::new());
-    for msg in waitlist {
+    for i in 0..chan.waiting.len() {
+        // TODO: (C) consider unsafe here to remove the allocation, dep. on benchmarks
+        let mut msg = Box::new(()) as LocalMessage;
+        mem::swap(&mut msg, &mut chan.waiting[i]);
         match await!(handle(msg)) {
             Use(ret) => {
+                chan.waiting.remove(i);
                 MY_CHANNEL.with(|c| *c.borrow_mut() = Some(chan));
                 return ret;
             }
             Skip(msg) => {
-                chan.waiting.push_back(msg);
+                chan.waiting[i] = msg;
             }
         }
     }
@@ -208,6 +212,8 @@ where
         }
     }
 }
+
+// TODO: (A) add a registry to record name<->Pid associations?
 
 #[cfg(test)]
 mod tests {
