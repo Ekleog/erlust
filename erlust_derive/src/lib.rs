@@ -10,50 +10,17 @@ use proc_macro2::{Ident, Span, TokenStream};
 use quote::ToTokens;
 use syn::{
     fold::{fold_pat, Fold},
-    spanned::Spanned,
     synom::Synom,
     token::Underscore,
-    Block, DeriveInput, Expr, Meta, Pat, PatWild, Type,
+    Block, DeriveInput, Expr, Pat, PatWild, Type,
 };
 
-// derive(Message)
+mod derive_message;
 
 #[proc_macro_derive(Message, attributes(erlust_tag))]
-pub fn derive_message(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let s = syn::parse::<DeriveInput>(input).unwrap();
-    let mut tag = None;
-    for attr in s.attrs {
-        if let Some(Meta::NameValue(m)) = attr.interpret_meta() {
-            if m.ident == "erlust_tag" {
-                if tag.is_some() {
-                    attr.span()
-                        .unstable()
-                        .error("Used the `erlust_tag` attribute multiple times")
-                        .emit();
-                    return proc_macro::TokenStream::new();
-                }
-                tag = Some(m.lit);
-            }
-        }
-    }
-    if let Some(tag) = tag {
-        let name = s.ident;
-        let res = quote! {
-            impl ::erlust::Message for #name {
-                fn tag() -> &'static str {
-                    #tag
-                }
-            }
-        };
-        res.into()
-    } else {
-        s.ident
-            .span()
-            .unstable()
-            .error("Missing `erlust_tag` attribute")
-            .emit();
-        return proc_macro::TokenStream::new();
-    }
+pub fn derive_message_macro(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let inp = syn::parse::<DeriveInput>(input).unwrap();
+    derive_message::derive_message(inp).into()
 }
 
 // receive!
