@@ -17,6 +17,7 @@ extern crate serde_derive;
 mod local_channel;
 mod local_channel_updater;
 mod local_senders;
+mod spawn;
 mod types;
 
 use futures::prelude::*;
@@ -32,13 +33,7 @@ use self::{
 
 pub use futures::{channel::mpsc::SendError, task::SpawnError};
 
-pub fn spawn<Fut>(fut: Fut) -> impl Future<Output = Result<(), SpawnError>>
-where
-    Fut: Future<Output = ()> + Send + 'static,
-{
-    let task = LocalChannelUpdater::new(fut);
-    future::lazy(move |cx| cx.spawner().spawn(task))
-}
+pub use self::spawn::spawn;
 
 // Warning: the Deserialize implementation should be implemented
 // in such a way that it fails if anything looks fishy in the message.
