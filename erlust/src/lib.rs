@@ -15,6 +15,7 @@ extern crate serde;
 extern crate serde_derive;
 
 mod local_senders;
+mod types;
 
 use futures::{channel::mpsc, prelude::*};
 use serde::{Deserialize, Serialize};
@@ -24,17 +25,15 @@ use std::{
     mem::{self, PinMut},
 };
 
-use self::local_senders::LOCAL_SENDERS;
+use self::{
+    local_senders::LOCAL_SENDERS,
+    types::{ActorId, LocalMessage, LocalReceiver, LocalSender},
+};
 
 pub use futures::{channel::mpsc::SendError, task::SpawnError};
 
 const QUEUE_BUFFER: usize = 64; // TODO: (C) fiddle
                                 // TODO: (B) Limit waiting queue size too
-
-type ActorId = usize;
-type LocalMessage = Box<Send + 'static>;
-type LocalSender = mpsc::Sender<LocalMessage>;
-type LocalReceiver = mpsc::Receiver<LocalMessage>;
 
 struct LocalChannel {
     actor_id: ActorId,
