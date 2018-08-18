@@ -25,7 +25,7 @@ use self::{
     local_channel::{LocalChannel, MY_CHANNEL},
     local_channel_updater::LocalChannelUpdater,
     local_senders::LOCAL_SENDERS,
-    types::{ActorId, LocalMessage, LocalReceiver, LocalSender},
+    types::{ActorId, LocalMessage, LocalReceiver, LocalSender, ReceivedMessage},
 };
 
 pub use futures::{channel::mpsc::SendError, task::SpawnError};

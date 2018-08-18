@@ -1,17 +1,17 @@
 use futures::{Future, StreamExt};
 use std::mem;
 
-use crate::{LocalMessage, MY_CHANNEL};
+use crate::{LocalMessage, Pid, ReceivedMessage, MY_CHANNEL};
 
 pub enum ReceiveResult<Ret> {
     Use(Ret),
-    Skip(LocalMessage),
+    Skip(ReceivedMessage),
 }
 
 pub async fn receive<HandleFn, Fut, Ret>(handle: HandleFn) -> Ret
 where
     Fut: Future<Output = ReceiveResult<Ret>>,
-    HandleFn: Fn(LocalMessage) -> Fut,
+    HandleFn: Fn(ReceivedMessage) -> Fut,
 {
     use self::ReceiveResult::*;
 
@@ -25,8 +25,8 @@ where
 
     // First, attempt to find a message in waiting list
     for i in 0..chan.waiting.len() {
-        // TODO: (C) consider unsafe here to remove the allocation, dep. on benchmarks
-        let mut msg = Box::new(()) as LocalMessage;
+        // TODO: (C) consider unsafe here to remove the temp. var., dep. on benchmarks
+        let mut msg = (Pid::me(), Box::new(()) as LocalMessage);
         mem::swap(&mut msg, &mut chan.waiting[i]);
         match await!(handle(msg)) {
             Use(ret) => {

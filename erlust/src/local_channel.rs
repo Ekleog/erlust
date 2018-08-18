@@ -1,7 +1,7 @@
 use futures::channel::mpsc;
 use std::{cell::RefCell, collections::VecDeque};
 
-use crate::{ActorId, LocalMessage, LocalReceiver, LocalSender, LOCAL_SENDERS};
+use crate::{ActorId, LocalReceiver, LocalSender, ReceivedMessage, LOCAL_SENDERS};
 
 const QUEUE_BUFFER: usize = 64;
 // TODO: (C) make QUEUE_BUFFER configurable
@@ -11,7 +11,7 @@ pub struct LocalChannel {
     pub actor_id: ActorId,
     pub sender:   LocalSender,
     pub receiver: LocalReceiver,
-    pub waiting:  VecDeque<LocalMessage>,
+    pub waiting:  VecDeque<ReceivedMessage>,
 }
 
 impl LocalChannel {
