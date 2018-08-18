@@ -36,13 +36,16 @@ impl Pid {
     // TODO: (B) SendError should be a custom type, SendError or RemoteSendError
     pub async fn send<M: Message>(&mut self, msg: Box<M>) -> Result<(), failure::Error> {
         match self.0 {
-            PidImpl::Local(ref mut l) => await!(l.sender.send((Pid::me(), msg as LocalMessage)).map_err(|e| e.into())),
+            PidImpl::Local(ref mut l) => await!(
+                l.sender
+                    .send((Pid::me(), msg as LocalMessage))
+                    .map_err(|e| e.into())
+            ),
             PidImpl::Remote(ref mut r) => await!(r.theater.send(my_actor_id() /* , msg */)),
         }
-        /* TODO: (A) handle receiving side (in erlust_derive?)
-            // TODO: (C) Check these `.unwrap()` are actually sane
-            let mut sender = LOCAL_SENDERS.read().unwrap().get(self.actor_id).unwrap();
-            await!(sender.send((LocalPid::me(), msg as LocalMessage)))
-        */
+        // TODO: (A) handle receiving side (as part of a Protocol?)
+        // TODO: (C) Check these `.unwrap()` are actually sane
+        // let mut sender = LOCAL_SENDERS.read().unwrap().get(self.actor_id).unwrap();
+        // await!(sender.send((LocalPid::me(), msg as LocalMessage)))
     }
 }
