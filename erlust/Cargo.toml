@@ -12,6 +12,8 @@ keywords = ["actor", "erlang", "async", "serialization", "futures",
 description = "Erlang-like actor system for Rust"
 
 [dependencies]
+erased-serde = "0.3"
+failure = "0.1"
 lazy_static = "1.1"
 serde = "1.0"
 

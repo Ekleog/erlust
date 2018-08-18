@@ -1,5 +1,6 @@
-use futures::channel::mpsc;
-use serde::{Deserialize, Serialize};
+use erased_serde::Serialize;
+use futures::{future::FutureObj, channel::mpsc};
+use serde::Deserialize;
 use std::any::Any;
 
 use crate::Pid;
@@ -21,3 +22,9 @@ pub type ReceivedMessage = (Pid, LocalMessage);
 
 pub type LocalSender = mpsc::Sender<ReceivedMessage>;
 pub type LocalReceiver = mpsc::Receiver<ReceivedMessage>;
+
+// TODO: (A) add Deserialize, split part trait-object-izable
+pub trait Theater: 'static + Any + Send + Serialize {
+    // TODO: (B) remove Box h:impl-trait-in-trait
+    fn send(&mut self, actor_id: ActorId /*, msg: Message */) -> FutureObj<Result<(), failure::Error>>;
+}

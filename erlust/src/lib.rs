@@ -6,6 +6,7 @@
     pin
 )]
 
+extern crate failure;
 extern crate futures;
 #[macro_use]
 extern crate lazy_static;
@@ -25,7 +26,7 @@ use self::{
     local_channel::{LocalChannel, MY_CHANNEL},
     local_channel_updater::LocalChannelUpdater,
     local_senders::LOCAL_SENDERS,
-    types::{ActorId, LocalMessage, LocalReceiver, LocalSender, ReceivedMessage},
+    types::{ActorId, LocalMessage, LocalReceiver, LocalSender, ReceivedMessage, Theater},
 };
 
 pub use futures::{channel::mpsc::SendError, task::SpawnError};
