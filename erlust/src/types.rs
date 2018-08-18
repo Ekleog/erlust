@@ -28,25 +28,28 @@ pub type LocalSender = mpsc::Sender<ReceivedMessage>;
 pub type LocalReceiver = mpsc::Receiver<ReceivedMessage>;
 
 pub trait Theater: Message {
-    // TODO: (B) remove Box h:impl-trait-in-trait
+    // TODO: (B) return impl Trait h:impl-trait-in-trait
     fn send(
         &mut self,
-        actor_id: ActorId, // , msg: Message
+        actor_id: ActorId,
+        msg: Box<dyn MessageBox>,
     ) -> FutureObj<Result<(), failure::Error>>;
 }
 
 pub trait TheaterBox: MessageBox {
     fn send(
         &mut self,
-        actor_id: ActorId, // , msg: Message
+        actor_id: ActorId,
+        msg: Box<dyn MessageBox>,
     ) -> FutureObj<Result<(), failure::Error>>;
 }
 
 impl<T: Theater> TheaterBox for T {
     fn send(
         &mut self,
-        actor_id: ActorId, // , msg: Message
+        actor_id: ActorId,
+        msg: Box<dyn MessageBox>,
     ) -> FutureObj<Result<(), failure::Error>> {
-        <Self as Theater>::send(self, actor_id)
+        <Self as Theater>::send(self, actor_id, msg)
     }
 }

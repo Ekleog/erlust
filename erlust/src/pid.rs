@@ -41,7 +41,7 @@ impl Pid {
                     .send((Pid::me(), msg as LocalMessage))
                     .map_err(|e| e.into())
             ),
-            PidImpl::Remote(ref mut r) => await!(r.theater.send(my_actor_id() /* , msg */)),
+            PidImpl::Remote(ref mut r) => await!(r.theater.send(my_actor_id(), msg)),
         }
         // TODO: (A) handle receiving side (as part of a Protocol?)
         // TODO: (C) Check these `.unwrap()` are actually sane
