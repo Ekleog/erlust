@@ -1,6 +1,6 @@
 use futures::{SinkExt, TryFutureExt};
 
-use crate::{ActorId, LocalMessage, LocalSender, Message, Theater, MY_CHANNEL};
+use crate::{ActorId, LocalMessage, LocalSender, Message, TheaterBox, MY_CHANNEL};
 
 pub struct Pid(PidImpl);
 
@@ -16,7 +16,7 @@ struct LocalPid {
 
 struct RemotePid {
     actor_id: ActorId,
-    theater:  Box<dyn Theater>,
+    theater:  Box<dyn TheaterBox>,
 }
 
 fn my_actor_id() -> ActorId {

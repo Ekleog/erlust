@@ -16,18 +16,37 @@ pub trait Message: 'static + Any + Send + Serialize + for<'de> Deserialize<'de> 
     fn tag() -> &'static str;
 }
 
+pub trait MessageBox: 'static + Any + Send + Serialize {}
+
+impl<T: Message> MessageBox for T {}
+
 pub type ActorId = usize;
-pub type LocalMessage = Box<Send + 'static>;
+pub type LocalMessage = Box<Send + 'static>; // TODO: (A) make MessageBox
 pub type ReceivedMessage = (Pid, LocalMessage);
 
 pub type LocalSender = mpsc::Sender<ReceivedMessage>;
 pub type LocalReceiver = mpsc::Receiver<ReceivedMessage>;
 
-// TODO: (A) add Deserialize, split part trait-object-izable
-pub trait Theater: 'static + Any + Send + Serialize {
+pub trait Theater: Message {
     // TODO: (B) remove Box h:impl-trait-in-trait
     fn send(
         &mut self,
         actor_id: ActorId, // , msg: Message
     ) -> FutureObj<Result<(), failure::Error>>;
+}
+
+pub trait TheaterBox: MessageBox {
+    fn send(
+        &mut self,
+        actor_id: ActorId, // , msg: Message
+    ) -> FutureObj<Result<(), failure::Error>>;
+}
+
+impl<T: Theater> TheaterBox for T {
+    fn send(
+        &mut self,
+        actor_id: ActorId, // , msg: Message
+    ) -> FutureObj<Result<(), failure::Error>> {
+        <Self as Theater>::send(self, actor_id)
+    }
 }
