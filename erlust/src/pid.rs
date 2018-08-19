@@ -1,7 +1,9 @@
+use erased_serde::Serializer;
 use futures::{SinkExt, TryFutureExt};
 
 use crate::{ActorId, LocalMessage, LocalSender, Message, TheaterBox, MY_CHANNEL};
 
+// TODO: (A) implement Message for Pid
 pub struct Pid(PidImpl);
 
 enum PidImpl {
@@ -33,7 +35,12 @@ impl Pid {
         Pid(PidImpl::Local(LocalPid { actor_id, sender }))
     }
 
-    // TODO: (B) SendError should be a custom type, SendError or RemoteSendError
+    #[doc(hidden)]
+    pub fn __remote(actor_id: ActorId, theater: Box<dyn TheaterBox>) -> Pid {
+        Pid(PidImpl::Remote(RemotePid { actor_id, theater }))
+    }
+
+    // TODO: (B) either replace failure::Error by a better type or document why not
     pub async fn send<M: Message>(&mut self, msg: Box<M>) -> Result<(), failure::Error> {
         match self.0 {
             PidImpl::Local(ref mut l) => await!(
@@ -41,11 +48,13 @@ impl Pid {
                     .send((Pid::me(), msg as LocalMessage))
                     .map_err(|e| e.into())
             ),
-            PidImpl::Remote(ref mut r) => await!(r.theater.send(my_actor_id(), msg)),
+            PidImpl::Remote(ref mut r) => {
+                let mut vec = Vec::with_capacity(128);
+                let mut ser = serde_json::ser::Serializer::new(&mut vec);
+                let mut erased_ser = Serializer::erase(&mut ser);
+                msg.erased_serialize(&mut erased_ser)?;
+                await!(r.theater.send(my_actor_id(), vec))
+            }
         }
-        // TODO: (A) handle receiving side (as part of a Protocol?)
-        // TODO: (C) Check these `.unwrap()` are actually sane
-        // let mut sender = LOCAL_SENDERS.read().unwrap().get(self.actor_id).unwrap();
-        // await!(sender.send((LocalPid::me(), msg as LocalMessage)))
     }
 }

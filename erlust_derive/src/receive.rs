@@ -214,6 +214,8 @@ receive! {
         .enumerate()
         .map(|(i, arm)| gen_outer_match_arm(i, arm.pat, arm.body));
 
+    // TODO: (A) assert for each type it's a Message
+    // TODO: (A) handle incoming RemoteMessage
     let res = quote! {
         {
             #arms_def
