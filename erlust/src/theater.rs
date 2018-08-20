@@ -9,7 +9,7 @@ pub trait Theater: Message + Clone {
 
     // A TheaterBox that can be used by the one on the other side of this Theater
     // to contact the TheaterBox o that can be contacted locally
-    fn sees_as(&mut self, o: Box<dyn TheaterBox>) -> Box<dyn TheaterBox>;
+    fn sees_as(&mut self, o: Box<dyn TheaterBox>) -> Box<Self>;
 
     fn serializer(&mut self, out: &mut Vec<u8>) -> Box<Serializer>;
 
