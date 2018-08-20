@@ -34,9 +34,9 @@ fn non_stupid() {
         assert_eq!(
             "test",
             receive!(
-                (usize, String): (1, ref x) if foo(x) => bar(x),
-                (usize, String): (2, x) => foobar(x),
-                usize: x if baz(x) => quux(x),
+                (usize, String): (_pid, (1, ref x)) if foo(x) => bar(x),
+                (usize, String): (_pid, (2, x)) => foobar(x),
+                usize: (_pid, x) if baz(x) => quux(x),
             )
         );
     };

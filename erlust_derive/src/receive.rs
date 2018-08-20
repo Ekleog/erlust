@@ -59,18 +59,18 @@ fn gen_arm_ident(i: usize) -> Ident {
 fn gen_inner_match(i: usize, ty: Type, pat: Pat, guard: TokenStream) -> TokenStream {
     let arm_name = gen_arm_ident(i);
     quote! {
-        msg = match msg.downcast::<#ty>() {
-            Ok(msg) => {
-                let matches = match &mut *msg {
+        msg = match (msg.0, msg.1.downcast::<#ty>()) {
+            (pid, Ok(msg)) => {
+                let matches = match &mut (pid, *msg) {
                     &mut #pat #guard => true,
                     _ => false,
                 };
                 if matches {
-                    return ::erlust::ReceiveResult::Use(MatchedArm::#arm_name(msg));
+                    return ::erlust::ReceiveResult::Use(MatchedArm::#arm_name((pid, msg)));
                 }
-                msg as Box<::std::any::Any>
+                (pid, msg as Box<::std::any::Any>)
             },
-            Err(msg) => msg,
+            (pid, Err(msg)) => (pid, msg),
         };
     }
 }
@@ -78,7 +78,7 @@ fn gen_inner_match(i: usize, ty: Type, pat: Pat, guard: TokenStream) -> TokenStr
 fn gen_outer_match_arm(i: usize, pat: Pat, body: BlockOrExpr) -> TokenStream {
     let arm_name = gen_arm_ident(i);
     quote! {
-        MatchedArm::#arm_name(msg) => match *msg {
+        MatchedArm::#arm_name((pid, msg)) => match (pid, *msg) {
             #pat => #body,
             _ => unreachable!() // TODO: (B) consider unreachable_unchecked
         },
@@ -188,7 +188,7 @@ receive! {
     let names_and_types = parsed.arms.iter().enumerate().map(|(i, arm)| {
         let name = gen_arm_ident(i);
         let ty = arm.ty.clone();
-        quote!(#name(Box<#ty>))
+        quote!(#name((::erlust::Pid, Box<#ty>)))
     });
     let arms_def = quote!(
         enum MatchedArm {
