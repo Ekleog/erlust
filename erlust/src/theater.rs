@@ -7,6 +7,10 @@ use crate::types::{ActorId, Message, MessageBox};
 pub trait Theater: Message + Clone {
     fn here(&mut self) -> Box<dyn TheaterBox>;
 
+    // A TheaterBox that can be used by the one on the other side of this Theater
+    // to contact the TheaterBox o that can be contacted locally
+    fn sees_as(&mut self, o: Box<dyn TheaterBox>) -> Box<dyn TheaterBox>;
+
     fn serializer(&mut self, out: &mut Vec<u8>) -> Box<Serializer>;
 
     // TODO: (B) return impl Trait h:impl-trait-in-trait
@@ -20,7 +24,9 @@ pub trait Theater: Message + Clone {
 pub trait TheaterBox: MessageBox {
     fn here(&mut self) -> Box<dyn TheaterBox>;
 
-    fn clone(&self) -> Box<dyn TheaterBox>;
+    fn clone_to_box(&self) -> Box<dyn TheaterBox>;
+
+    fn sees_as(&mut self, o: Box<dyn TheaterBox>) -> Box<dyn TheaterBox>;
 
     fn serializer(&mut self, out: &mut Vec<u8>) -> Box<Serializer>;
 
@@ -32,8 +38,12 @@ impl<T: Theater> TheaterBox for T {
         <Self as Theater>::here(self)
     }
 
-    fn clone(&self) -> Box<dyn TheaterBox> {
+    fn clone_to_box(&self) -> Box<dyn TheaterBox> {
         Box::new(<Self as Clone>::clone(self))
+    }
+
+    fn sees_as(&mut self, o: Box<dyn TheaterBox>) -> Box<dyn TheaterBox> {
+        <Self as Theater>::sees_as(self, o)
     }
 
     fn serializer(&mut self, out: &mut Vec<u8>) -> Box<Serializer> {

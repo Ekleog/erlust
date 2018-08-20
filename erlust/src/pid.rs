@@ -77,12 +77,19 @@ impl Serialize for Pid {
     where
         S: Serializer,
     {
+        let mut here = HERE.with(|h| h.borrow().as_ref().unwrap().clone_to_box());
         match self.0 {
-            PidImpl::Remote(ref r) => r.serialize(serializer),
             PidImpl::Local(ref l) => {
                 let seen_from_remote = RemotePid {
                     actor_id: l.actor_id,
-                    theater:  HERE.with(|h| (*h.borrow().as_ref().unwrap()).clone()),
+                    theater:  here,
+                };
+                seen_from_remote.serialize(serializer)
+            }
+            PidImpl::Remote(ref r) => {
+                let seen_from_remote = RemotePid {
+                    actor_id: r.actor_id,
+                    theater:  here.sees_as(r.theater.clone_to_box()),
                 };
                 seen_from_remote.serialize(serializer)
             }
