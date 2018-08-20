@@ -6,12 +6,14 @@
     pin
 )]
 
+#[macro_use]
+extern crate erased_serde;
 extern crate failure;
 extern crate futures;
 #[macro_use]
 extern crate lazy_static;
 extern crate serde;
-#[cfg(test)]
+#[macro_use]
 extern crate serde_derive;
 
 mod inject;

@@ -4,7 +4,9 @@ use futures::future::FutureObj;
 use crate::types::{ActorId, Message, MessageBox};
 
 // TODO: (A) provide an implementation of Theater
-pub trait Theater: Message {
+pub trait Theater: Message + Clone {
+    fn here(&mut self) -> Box<dyn TheaterBox>;
+
     fn serializer(&mut self, out: &mut Vec<u8>) -> Box<Serializer>;
 
     // TODO: (B) return impl Trait h:impl-trait-in-trait
@@ -16,12 +18,24 @@ pub trait Theater: Message {
 }
 
 pub trait TheaterBox: MessageBox {
+    fn here(&mut self) -> Box<dyn TheaterBox>;
+
+    fn clone(&self) -> Box<dyn TheaterBox>;
+
     fn serializer(&mut self, out: &mut Vec<u8>) -> Box<Serializer>;
 
     fn send(&mut self, actor_id: ActorId, msg: Vec<u8>) -> FutureObj<Result<(), failure::Error>>;
 }
 
 impl<T: Theater> TheaterBox for T {
+    fn here(&mut self) -> Box<TheaterBox> {
+        <Self as Theater>::here(self)
+    }
+
+    fn clone(&self) -> Box<dyn TheaterBox> {
+        Box::new(<Self as Clone>::clone(self))
+    }
+
     fn serializer(&mut self, out: &mut Vec<u8>) -> Box<Serializer> {
         <Self as Theater>::serializer(self, out)
     }
@@ -30,3 +44,5 @@ impl<T: Theater> TheaterBox for T {
         <Self as Theater>::send(self, actor_id, msg)
     }
 }
+
+serialize_trait_object!(TheaterBox);
