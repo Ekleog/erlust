@@ -1,4 +1,3 @@
-use erased_serde::Serializer;
 use futures::{SinkExt, TryFutureExt};
 
 use crate::{ActorId, LocalMessage, LocalSender, Message, TheaterBox, MY_CHANNEL};
@@ -49,9 +48,9 @@ impl Pid {
                     .map_err(|e| e.into())
             ),
             PidImpl::Remote(ref mut r) => {
+                // TODO: (B) have the theater-provided serializer asyncly send on-the-fly?
                 let mut vec = Vec::with_capacity(128);
-                let mut ser = serde_json::ser::Serializer::new(&mut vec);
-                let mut erased_ser = Serializer::erase(&mut ser);
+                let mut erased_ser = r.theater.serializer(&mut vec);
                 msg.erased_serialize(&mut erased_ser)?;
                 await!(r.theater.send(my_actor_id(), vec))
             }

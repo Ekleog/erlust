@@ -1,5 +1,5 @@
 use erased_serde::Serialize;
-use futures::{channel::mpsc, future::FutureObj};
+use futures::channel::mpsc;
 use serde::Deserialize;
 use std::any::Any;
 
@@ -25,23 +25,3 @@ pub struct RemoteMessage(pub Vec<u8>);
 
 pub type LocalSender = mpsc::Sender<ReceivedMessage>;
 pub type LocalReceiver = mpsc::Receiver<ReceivedMessage>;
-
-// TODO: (A) provide an implementation of Theater
-pub trait Theater: Message {
-    // TODO: (B) return impl Trait h:impl-trait-in-trait
-    fn send(
-        &mut self,
-        actor_id: ActorId,
-        msg: Vec<u8>, // TODO: (B) think of a way to allow Theater to specify (de)serialization
-    ) -> FutureObj<Result<(), failure::Error>>;
-}
-
-pub trait TheaterBox: MessageBox {
-    fn send(&mut self, actor_id: ActorId, msg: Vec<u8>) -> FutureObj<Result<(), failure::Error>>;
-}
-
-impl<T: Theater> TheaterBox for T {
-    fn send(&mut self, actor_id: ActorId, msg: Vec<u8>) -> FutureObj<Result<(), failure::Error>> {
-        <Self as Theater>::send(self, actor_id, msg)
-    }
-}

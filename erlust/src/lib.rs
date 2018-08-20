@@ -13,7 +13,6 @@ extern crate lazy_static;
 extern crate serde;
 #[cfg(test)]
 extern crate serde_derive;
-extern crate serde_json;
 
 mod inject;
 mod local_channel;
@@ -22,16 +21,15 @@ mod local_senders;
 mod pid;
 mod receive;
 mod spawn;
+mod theater;
 mod types;
 
 use self::{
     local_channel::{LocalChannel, MY_CHANNEL},
     local_channel_updater::LocalChannelUpdater,
     local_senders::LOCAL_SENDERS,
-    types::{
-        ActorId, LocalMessage, LocalReceiver, LocalSender, ReceivedMessage, RemoteMessage,
-        TheaterBox,
-    },
+    theater::TheaterBox,
+    types::{ActorId, LocalMessage, LocalReceiver, LocalSender, ReceivedMessage, RemoteMessage},
 };
 
 pub use futures::{channel::mpsc::SendError, task::SpawnError};
@@ -41,6 +39,7 @@ pub use self::{
     pid::Pid,
     receive::{receive, ReceiveResult},
     spawn::spawn,
+    theater::Theater,
     types::Message,
 };
 
