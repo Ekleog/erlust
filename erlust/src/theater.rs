@@ -5,7 +5,7 @@ use crate::types::{ActorId, Message, MessageBox};
 
 // TODO: (A) provide an implementation of Theater
 pub trait Theater: Message + Clone {
-    fn here(&mut self) -> Box<dyn TheaterBox>;
+    fn here(&mut self) -> Box<Self>;
 
     // A TheaterBox that can be used by the one on the other side of this Theater
     // to contact the TheaterBox o that can be contacted locally
