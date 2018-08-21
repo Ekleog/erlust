@@ -1,3 +1,4 @@
+use erased_serde::Serialize as ErasedSerdeSerialize;
 use futures::{SinkExt, TryFutureExt};
 use serde::{Serialize, Serializer};
 use std::cell::RefCell;
@@ -62,7 +63,7 @@ impl Pid {
                 let mut erased_ser = r.theater.serializer(&mut vec);
                 HERE.with(|here| -> Result<(), erased_serde::Error> {
                     *here.borrow_mut() = Some(r.theater.here());
-                    msg.erased_serialize(&mut erased_ser)?;
+                    (M::tag(), msg).erased_serialize(&mut erased_ser)?;
                     *here.borrow_mut() = None;
                     Ok(())
                 })?;

@@ -1,4 +1,3 @@
-use erased_serde::Serialize;
 use futures::channel::mpsc;
 use serde::Deserialize;
 use std::any::Any;
@@ -10,11 +9,11 @@ pub type ActorId = usize;
 // Warning: the Deserialize implementation should be implemented
 // in such a way that it fails if anything looks fishy in the message.
 // #[serde(deny_unknown_fields)] (at least) is thus recommended
-pub trait Message: 'static + Any + Send + Serialize + for<'de> Deserialize<'de> {
+pub trait Message: 'static + Any + Send + serde::Serialize + for<'de> Deserialize<'de> {
     fn tag() -> &'static str;
 }
 
-pub trait MessageBox: 'static + Any + Send + Serialize {}
+pub trait MessageBox: 'static + Any + Send + erased_serde::Serialize {}
 
 impl<T: Message> MessageBox for T {}
 
