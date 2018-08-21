@@ -16,11 +16,7 @@ pub trait Theater: Message + Clone {
     fn deserializer(&mut self) -> Box<Deserializer>;
 
     // TODO: (B) return impl Trait h:impl-trait-in-trait
-    fn send(
-        &mut self,
-        actor_id: ActorId,
-        msg: Vec<u8>,
-    ) -> FutureObj<Result<(), failure::Error>>;
+    fn send(&mut self, actor_id: ActorId, msg: Vec<u8>) -> FutureObj<Result<(), failure::Error>>;
 }
 
 pub trait TheaterBox: MessageBox {
