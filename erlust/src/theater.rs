@@ -1,4 +1,4 @@
-use erased_serde::Serializer;
+use erased_serde::{Deserializer, Serializer};
 use futures::future::FutureObj;
 
 use crate::types::{ActorId, Message, MessageBox};
@@ -11,13 +11,15 @@ pub trait Theater: Message + Clone {
     // to contact the TheaterBox o that can be contacted locally
     fn sees_as(&mut self, o: Box<dyn TheaterBox>) -> Box<Self>;
 
+    // TODO: (B) return associated type
     fn serializer(&mut self, out: &mut Vec<u8>) -> Box<Serializer>;
+    fn deserializer(&mut self) -> Box<Deserializer>;
 
     // TODO: (B) return impl Trait h:impl-trait-in-trait
     fn send(
         &mut self,
         actor_id: ActorId,
-        msg: Vec<u8>, // TODO: (B) think of a way to allow Theater to specify (de)serialization
+        msg: Vec<u8>,
     ) -> FutureObj<Result<(), failure::Error>>;
 }
 
@@ -29,6 +31,7 @@ pub trait TheaterBox: MessageBox {
     fn sees_as(&mut self, o: Box<dyn TheaterBox>) -> Box<dyn TheaterBox>;
 
     fn serializer(&mut self, out: &mut Vec<u8>) -> Box<Serializer>;
+    fn deserializer(&mut self) -> Box<Deserializer>;
 
     fn send(&mut self, actor_id: ActorId, msg: Vec<u8>) -> FutureObj<Result<(), failure::Error>>;
 }
@@ -48,6 +51,10 @@ impl<T: Theater> TheaterBox for T {
 
     fn serializer(&mut self, out: &mut Vec<u8>) -> Box<Serializer> {
         <Self as Theater>::serializer(self, out)
+    }
+
+    fn deserializer(&mut self) -> Box<Deserializer> {
+        <Self as Theater>::deserializer(self)
     }
 
     fn send(&mut self, actor_id: ActorId, msg: Vec<u8>) -> FutureObj<Result<(), failure::Error>> {
