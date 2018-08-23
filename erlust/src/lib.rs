@@ -31,7 +31,7 @@ use self::{
     local_channel_updater::LocalChannelUpdater,
     local_senders::LOCAL_SENDERS,
     theater::TheaterBox,
-    types::{ActorId, LocalMessage, LocalReceiver, LocalSender, ReceivedMessage, RemoteMessage},
+    types::{ActorId, LocalMessage, LocalReceiver, LocalSender, ReceivedMessage},
 };
 
 pub use futures::{channel::mpsc::SendError, task::SpawnError};
@@ -42,7 +42,7 @@ pub use self::{
     receive::{receive, ReceiveResult},
     spawn::spawn,
     theater::Theater,
-    types::Message,
+    types::{Message, RemoteMessage},
 };
 
 // TODO: (A) add a registry to record name<->Pid associations?

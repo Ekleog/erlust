@@ -47,6 +47,15 @@ impl Pid {
         Pid(PidImpl::Remote(RemotePid { actor_id, theater }))
     }
 
+    #[doc(hidden)]
+    pub fn __theater_assert_remote(&self) -> Box<dyn TheaterBox> {
+        if let PidImpl::Remote(ref r) = self.0 {
+            r.theater.clone_to_box()
+        } else {
+            unreachable!()
+        }
+    }
+
     // TODO: (B) either replace failure::Error by a better type or document why not
     pub async fn send<M: Message>(&mut self, msg: Box<M>) -> Result<(), failure::Error> {
         match self.0 {
