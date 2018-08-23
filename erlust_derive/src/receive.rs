@@ -85,6 +85,10 @@ fn gen_outer_match_arm(i: usize, pat: Pat, body: BlockOrExpr) -> TokenStream {
     }
 }
 
+// TODO: (A) handle timeout
+
+// TODO: (A) make tuples and base types implement Message?
+// TODO: (B) think of the compatibility-with-old-messages story
 // Being given:
 //
 //  receive! {
@@ -148,8 +152,32 @@ fn gen_outer_match_arm(i: usize, pat: Pat, body: BlockOrExpr) -> TokenStream {
 //              }
 //              res as Box<Any>
 //          },
+//          Err(b) => b,
 //      };
-//      Skip(msg)
+//      match msg.downcast::<RemoteMessage>() {
+//          Ok(msg) => {
+//              match ::erased_serde::deserialize::<(String, Box<(usize, String)>)>(&msg) {
+//                  Ok((tag, msg)) if tag == <(usize, String) as Message>::tag() {
+//                      return Use(Arm1(msg));
+//                  },
+//                  _ => (),
+//              };
+//              match ::erased_serde::deserialize::<(String, Box<(usize, String)>)>(&msg) {
+//                  Ok((tag, msg)) if tag == <(usize, String) as Message>::tag() {
+//                      return Use(Arm2(msg));
+//                  },
+//                  _ => (),
+//              };
+//              match ::erased_serde::deserialize<(String, Box<usize>)>(&msg) {
+//                  Ok((tag, msg)) if tag == <usize as Message>::tag() {
+//                      return Use(Arm3(msg));
+//                  },
+//                  _ => (),
+//              }
+//              Skip(msg as LocalMessage)
+//          },
+//          Err(b) => Skip(b),
+//      };
 //  })) {
 //      Arm1(msg) => match *msg {
 //          (1, ref x) => bar(x),
