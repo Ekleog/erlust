@@ -1,4 +1,5 @@
 #![feature(proc_macro_diagnostic)]
+#![recursion_limit = "128"]
 
 #[macro_use]
 extern crate quote;

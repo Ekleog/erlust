@@ -75,6 +75,24 @@ fn gen_inner_match(i: usize, ty: Type, pat: Pat, guard: TokenStream) -> TokenStr
     }
 }
 
+fn gen_deserialize_match(i: usize, ty: Type, pat: Pat, guard: TokenStream) -> TokenStream {
+    let arm_name = gen_arm_ident(i);
+    quote! {
+        match ::erased_serde::deserialize::<(String, Box<#ty>)>(pid.__theater_assert_remote().deserialize(&msg)) {
+            Ok((tag, msg)) if tag == <#ty as ::erlust::Message>::tag() => {
+                let matches = match &mut (pid, *msg) {
+                    &mut #pat #guard => true,
+                    _ => false,
+                };
+                if matches {
+                    return ::erlust::ReceiveResult::Use(MatchedArm::#arm_name((pid, msg)));
+                }
+            },
+            _ => (),
+        };
+    }
+}
+
 fn gen_outer_match_arm(i: usize, pat: Pat, body: BlockOrExpr) -> TokenStream {
     let arm_name = gen_arm_ident(i);
     quote! {
@@ -89,6 +107,7 @@ fn gen_outer_match_arm(i: usize, pat: Pat, body: BlockOrExpr) -> TokenStream {
 
 // TODO: (A) make tuples and base types implement Message?
 // TODO: (B) think of the compatibility-with-old-messages story
+// TODO: (A) update example with receiving the Pid
 // Being given:
 //
 //  receive! {
@@ -156,21 +175,45 @@ fn gen_outer_match_arm(i: usize, pat: Pat, body: BlockOrExpr) -> TokenStream {
 //      };
 //      match msg.downcast::<RemoteMessage>() {
 //          Ok(msg) => {
-//              match ::erased_serde::deserialize::<(String, Box<(usize, String)>)>(&msg) {
-//                  Ok((tag, msg)) if tag == <(usize, String) as Message>::tag() {
-//                      return Use(Arm1(msg));
+//              match ::erased_serde::deserialize
+//                    ::<(String, Box<(usize, String)>)>(&msg) {
+//                  Ok((tag, msg))
+//                  if tag == <(usize, String) as Message>::tag() {
+//                      let matches = match &mut *msg {
+//                          &mut (1, ref x) if foo(x) => true,
+//                          _ => false,
+//                      };
+//                      if (matches) {
+//                          return Use(Arm1(msg));
+//                      }
 //                  },
 //                  _ => (),
 //              };
-//              match ::erased_serde::deserialize::<(String, Box<(usize, String)>)>(&msg) {
-//                  Ok((tag, msg)) if tag == <(usize, String) as Message>::tag() {
-//                      return Use(Arm2(msg));
+//              match ::erased_serde::deserialize
+//                    ::<(String, Box<(usize, String)>)>(&msg) {
+//                  Ok((tag, msg))
+//                  if tag == <(usize, String) as Message>::tag() {
+//                      let matches = match &mut *msg {
+//                          &mut (2, _) => true,
+//                          _ => false,
+//                      };
+//                      if (matches) {
+//                          return Use(Arm2(msg));
+//                      }
 //                  },
 //                  _ => (),
 //              };
-//              match ::erased_serde::deserialize<(String, Box<usize>)>(&msg) {
-//                  Ok((tag, msg)) if tag == <usize as Message>::tag() {
-//                      return Use(Arm3(msg));
+//              match ::erased_serde::deserialize
+//                    ::<(String, Box<usize>)>(&msg) {
+//                  Ok((tag, msg))
+//                  if tag == <usize as Message>::tag() {
+//                      let matches = match &mut *msg {
+//                          &mut x if baz(x) => true,
+//                          _ => false,
+//                      };
+//                      if (matches) {
+//                          return Use(Arm3(msg));
+//                      }
 //                  },
 //                  _ => (),
 //              }
@@ -234,6 +277,16 @@ receive! {
         }
     });
 
+    // Generate the deserialize-attempt matches
+    let deserialize_matches = parsed.arms.iter().cloned().enumerate().map(|(i, arm)| {
+        if let Some(guard) = arm.guard {
+            gen_deserialize_match(i, arm.ty, arm.pat, quote!(if #guard))
+        } else {
+            let ignoring_pat = fold_pat(&mut PatIgnorer(), arm.pat);
+            gen_deserialize_match(i, arm.ty, ignoring_pat, quote!())
+        }
+    });
+
     // Generate the outer match's arms
     let outer_match_arms = parsed
         .arms
@@ -243,14 +296,19 @@ receive! {
         .map(|(i, arm)| gen_outer_match_arm(i, arm.pat, arm.body));
 
     // TODO: (A) assert for each type it's a Message
-    // TODO: (A) handle incoming RemoteMessage
     let res = quote! {
         {
             #arms_def
 
             match await!(::erlust::receive(async move |mut msg| {
                 #(#inner_matches)*
-                ::erlust::ReceiveResult::Skip(msg)
+                match (msg.0, msg.1.downcast::<::erlust::RemoteMessage>()) {
+                    (pid, Ok(msg)) => {
+                        #(#deserialize_matches)*
+                        ::erlust::ReceiveResult::Skip((pid, msg))
+                    },
+                    (pid, Err(msg)) => ::erlust::ReceiveResult::Skip((pid, msg)),
+                }
             })) {
                 #(#outer_match_arms)*
             }
