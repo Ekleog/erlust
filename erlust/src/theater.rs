@@ -13,7 +13,7 @@ pub trait Theater: Message + Clone {
 
     // TODO: (B) return associated type
     fn serializer(&mut self, out: &mut Vec<u8>) -> Box<Serializer>;
-    fn deserializer(&mut self) -> Box<Deserializer>;
+    fn deserializer<'de>(&mut self, inp: &Vec<u8>) -> Box<Deserializer<'de>>;
 
     // TODO: (B) return impl Trait h:impl-trait-in-trait
     fn send(&mut self, actor_id: ActorId, msg: Vec<u8>) -> FutureObj<Result<(), failure::Error>>;
@@ -27,7 +27,7 @@ pub trait TheaterBox: MessageBox {
     fn sees_as(&mut self, o: Box<dyn TheaterBox>) -> Box<dyn TheaterBox>;
 
     fn serializer(&mut self, out: &mut Vec<u8>) -> Box<Serializer>;
-    fn deserializer(&mut self) -> Box<Deserializer>;
+    fn deserializer<'de>(&mut self, inp: &'de Vec<u8>) -> Box<Deserializer<'de>>;
 
     fn send(&mut self, actor_id: ActorId, msg: Vec<u8>) -> FutureObj<Result<(), failure::Error>>;
 }
@@ -49,8 +49,8 @@ impl<T: Theater> TheaterBox for T {
         <Self as Theater>::serializer(self, out)
     }
 
-    fn deserializer(&mut self) -> Box<Deserializer> {
-        <Self as Theater>::deserializer(self)
+    fn deserializer<'de>(&mut self, inp: &'de Vec<u8>) -> Box<Deserializer<'de>> {
+        <Self as Theater>::deserializer(self, inp)
     }
 
     fn send(&mut self, actor_id: ActorId, msg: Vec<u8>) -> FutureObj<Result<(), failure::Error>> {
