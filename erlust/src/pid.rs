@@ -1,6 +1,6 @@
 use erased_serde::Serialize as ErasedSerdeSerialize;
 use futures::{SinkExt, TryFutureExt};
-use serde::{Serialize, Serializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::{ActorId, LocalMessage, LocalSender, Message, TheaterBox, HERE, MY_CHANNEL};
 
@@ -101,4 +101,12 @@ impl Serialize for Pid {
     }
 }
 
-// TODO: (A) Deserialize for Pid
+impl<'de> Deserialize<'de> for Pid {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let r = RemotePid::deserialize(deserializer)?;
+        Ok(Pid(PidImpl::Remote(r)))
+    }
+}
