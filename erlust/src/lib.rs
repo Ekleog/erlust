@@ -30,7 +30,7 @@ use self::{
     local_channel::{LocalChannel, MY_CHANNEL},
     local_channel_updater::LocalChannelUpdater,
     local_senders::LOCAL_SENDERS,
-    theater::TheaterBox,
+    theater::{TheaterBox, HERE},
     types::{ActorId, LocalMessage, LocalReceiver, LocalSender, ReceivedMessage},
 };
 

@@ -1,9 +1,10 @@
 use erased_serde::Serialize as ErasedSerdeSerialize;
 use futures::{SinkExt, TryFutureExt};
 use serde::{Serialize, Serializer};
-use std::cell::RefCell;
 
-use crate::{ActorId, LocalMessage, LocalSender, Message, TheaterBox, MY_CHANNEL};
+use crate::{
+    ActorId, LocalMessage, LocalSender, Message, TheaterBox, HERE, MY_CHANNEL,
+};
 
 pub struct Pid(PidImpl);
 
@@ -17,8 +18,7 @@ struct LocalPid {
     sender:   LocalSender,
 }
 
-// TODO: (A) implement Deserialize
-#[derive(Serialize)]
+#[derive(Deserialize, Serialize)]
 struct RemotePid {
     actor_id: ActorId,
     theater:  Box<dyn TheaterBox>,
@@ -26,10 +26,6 @@ struct RemotePid {
 
 fn my_actor_id() -> ActorId {
     MY_CHANNEL.with(|c| c.borrow().as_ref().unwrap().actor_id)
-}
-
-thread_local! {
-    static HERE: RefCell<Option<Box<TheaterBox>>> = RefCell::new(None);
 }
 
 impl Pid {
@@ -106,3 +102,5 @@ impl Serialize for Pid {
         }
     }
 }
+
+// TODO: (A) Deserialize for Pid

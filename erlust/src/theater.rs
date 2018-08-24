@@ -1,5 +1,7 @@
 use erased_serde::{Deserializer, Serializer};
 use futures::future::FutureObj;
+use serde::de::Error as SerdeDeError;
+use std::cell::RefCell;
 
 use crate::types::{ActorId, Message, MessageBox};
 
@@ -13,7 +15,7 @@ pub trait Theater: Message + Clone {
 
     // TODO: (B) return associated type
     fn serializer(&mut self, out: &mut Vec<u8>) -> Box<Serializer>;
-    fn deserializer<'de>(&mut self, inp: &Vec<u8>) -> Box<Deserializer<'de>>;
+    fn deserializer<'de>(&mut self, inp: &'de Vec<u8>) -> Box<Deserializer<'de>>;
 
     // TODO: (B) return impl Trait h:impl-trait-in-trait
     fn send(
@@ -29,6 +31,10 @@ pub trait TheaterBox: MessageBox {
     fn here(&mut self) -> Box<dyn TheaterBox>;
 
     fn clone_to_box(&self) -> Box<dyn TheaterBox>;
+    fn deserialize_as_self(
+        &self,
+        inp: &mut Deserializer,
+    ) -> Result<Box<TheaterBox>, erased_serde::Error>;
 
     fn sees_as(&mut self, o: Box<dyn TheaterBox>) -> Box<dyn TheaterBox>;
 
@@ -44,6 +50,10 @@ pub trait TheaterBox: MessageBox {
     ) -> FutureObj<Result<(), failure::Error>>;
 }
 
+thread_local! {
+    pub static HERE: RefCell<Option<Box<TheaterBox>>> = RefCell::new(None);
+}
+
 impl<T: Theater> TheaterBox for T {
     fn here(&mut self) -> Box<TheaterBox> {
         <Self as Theater>::here(self)
@@ -51,6 +61,13 @@ impl<T: Theater> TheaterBox for T {
 
     fn clone_to_box(&self) -> Box<dyn TheaterBox> {
         Box::new(<Self as Clone>::clone(self))
+    }
+
+    fn deserialize_as_self(
+        &self,
+        inp: &mut Deserializer,
+    ) -> Result<Box<TheaterBox>, erased_serde::Error> {
+        erased_serde::deserialize::<Box<Self>>(inp).map(|t| t as Box<TheaterBox>)
     }
 
     fn sees_as(&mut self, o: Box<dyn TheaterBox>) -> Box<dyn TheaterBox> {
@@ -77,3 +94,20 @@ impl<T: Theater> TheaterBox for T {
 }
 
 serialize_trait_object!(TheaterBox);
+
+impl<'de> serde::Deserialize<'de> for Box<dyn TheaterBox> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let mut d = erased_serde::Deserializer::erase(deserializer);
+        HERE.with(|h| {
+            h.borrow()
+                .as_ref()
+                .unwrap()
+                .deserialize_as_self(&mut d)
+                .map_err(|e| D::Error::custom(format!("{}", e)))
+                // TODO: (B) try to proxy full error
+        })
+    }
+}
