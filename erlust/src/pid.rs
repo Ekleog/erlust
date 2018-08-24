@@ -72,11 +72,11 @@ impl Pid {
                 let mut erased_ser = r.theater.serializer(&mut vec);
                 HERE.with(|here| -> Result<(), erased_serde::Error> {
                     *here.borrow_mut() = Some(r.theater.here());
-                    (M::tag(), msg).erased_serialize(&mut erased_ser)?;
+                    msg.erased_serialize(&mut erased_ser)?;
                     *here.borrow_mut() = None;
                     Ok(())
                 })?;
-                await!(r.theater.send(my_actor_id(), vec))
+                await!(r.theater.send(my_actor_id(), r.actor_id, M::tag(), vec))
             }
         }
     }

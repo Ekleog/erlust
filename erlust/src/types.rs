@@ -20,7 +20,10 @@ impl<T: Message> MessageBox for T {}
 pub type LocalMessage = Box<Send + 'static>; // TODO: (A) make MessageBox h:https://github.com/rust-lang-nursery/futures-rs/issues/1199
 pub type ReceivedMessage = (Pid, LocalMessage);
 
-pub struct RemoteMessage(pub Vec<u8>);
+pub struct RemoteMessage {
+    pub tag: String,
+    pub msg: Vec<u8>,
+}
 
 pub type LocalSender = mpsc::Sender<ReceivedMessage>;
 pub type LocalReceiver = mpsc::Receiver<ReceivedMessage>;
