@@ -2,9 +2,7 @@ use erased_serde::Serialize as ErasedSerdeSerialize;
 use futures::{SinkExt, TryFutureExt};
 use serde::{Serialize, Serializer};
 
-use crate::{
-    ActorId, LocalMessage, LocalSender, Message, TheaterBox, HERE, MY_CHANNEL,
-};
+use crate::{ActorId, LocalMessage, LocalSender, Message, TheaterBox, HERE, MY_CHANNEL};
 
 pub struct Pid(PidImpl);
 

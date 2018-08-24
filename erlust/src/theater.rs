@@ -107,7 +107,7 @@ impl<'de> serde::Deserialize<'de> for Box<dyn TheaterBox> {
                 .unwrap()
                 .deserialize_as_self(&mut d)
                 .map_err(|e| D::Error::custom(format!("{}", e)))
-                // TODO: (B) try to proxy full error
+            // TODO: (B) try to proxy full error
         })
     }
 }
