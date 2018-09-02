@@ -50,6 +50,7 @@ pub trait TheaterBox: MessageBox {
     ) -> FutureObj<Result<(), failure::Error>>;
 }
 
+// TODO: (B) use scoped_tls
 thread_local! {
     pub static HERE: RefCell<Option<Box<TheaterBox>>> = RefCell::new(None);
 }

@@ -45,9 +45,13 @@ pub use self::{
     types::{Message, RemoteMessage},
 };
 
-// TODO: (A) add a registry to record name<->Pid associations?
+// TODO: (A) add a local registry to record name<->Pid associations?
+// TODO: (B) write a library offering a global registry for name<->Pid
 
 // TODO: (A) document all the things
 // TODO: (A) test all the things
 
 // TODO: (A) implement links & monitors
+// TODO: (A) implement cross-process links & monitors
+
+// TODO: (B) consider using pub(crate) instead of #[doc(hidden)]

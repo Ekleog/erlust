@@ -8,7 +8,8 @@ pub enum ReceiveResult<Ret> {
     Skip(ReceivedMessage),
 }
 
-// TODO: (A) add a timeout
+// Note: it's highly recommended to use by setting a timeout on the returned
+// future
 pub async fn receive<HandleFn, Fut, Ret>(handle: HandleFn) -> Ret
 where
     Fut: Future<Output = ReceiveResult<Ret>>,
