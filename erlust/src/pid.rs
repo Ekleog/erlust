@@ -1,3 +1,5 @@
+//! Ways to transparently send messages to actors both locally and remotely
+
 use erased_serde::Serialize as ErasedSerdeSerialize;
 use futures::{SinkExt, TryFutureExt};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};

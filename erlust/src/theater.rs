@@ -1,3 +1,5 @@
+//! Protocol for sending messages to remote actors
+
 use erased_serde::{Deserializer, Serializer};
 use futures::future::FutureObj;
 use serde::de::Error as SerdeDeError;
