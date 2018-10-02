@@ -1,6 +1,7 @@
-#![feature(proc_macro_diagnostic)]
+#![feature(async_await, proc_macro_diagnostic)]
 #![recursion_limit = "128"]
 
+extern crate proc_macro;
 #[macro_use]
 extern crate quote;
 #[macro_use]
@@ -11,7 +12,7 @@ mod derive_message;
 mod pat_ignorer;
 mod receive;
 
-use proc_macro::TokenStream;
+use self::proc_macro::TokenStream;
 
 #[proc_macro_derive(Message, attributes(erlust_tag))]
 pub fn derive_message_macro(input: TokenStream) -> TokenStream {

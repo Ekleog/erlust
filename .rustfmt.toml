@@ -1,4 +1,4 @@
-edition = "Edition2018"
+edition = "2018"
 format_strings = true
 merge_imports = true
 normalize_comments = true

@@ -1,5 +1,5 @@
 use futures::{task, Future, Poll};
-use std::mem::PinMut;
+use std::pin::Pin;
 
 use crate::{LocalChannel, MY_CHANNEL};
 
@@ -20,14 +20,14 @@ impl<Fut: Future<Output = ()>> LocalChannelUpdater<Fut> {
 impl<Fut: Future<Output = ()>> Future for LocalChannelUpdater<Fut> {
     type Output = ();
 
-    fn poll(self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+    fn poll(self: Pin<&mut Self>, lw: &task::LocalWaker) -> Poll<Self::Output> {
         MY_CHANNEL.with(|my_channel| {
             // TODO: (B) Check this unsafe is actually safe and comment here on why
             // TODO: (B) Use scoped-tls?
             unsafe {
-                let this = PinMut::get_mut_unchecked(self);
+                let this = Pin::get_mut_unchecked(self);
                 my_channel.replace(this.channel.take());
-                let res = PinMut::new_unchecked(&mut this.fut).poll(cx);
+                let res = Pin::new_unchecked(&mut this.fut).poll(lw);
                 this.channel = my_channel.replace(None);
                 res
             }
