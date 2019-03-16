@@ -81,7 +81,8 @@ fn gen_remote_match(i: usize, ty: Type, pat: Pat, guard: TokenStream) -> TokenSt
     let arm_name = gen_arm_ident(i);
     quote! {
         if m.tag == <#ty as ::erlust::Message>::tag() {
-            match ::erased_serde::deserialize::<Box<#ty>>(&m.msg) {
+            let deserializer = from.__theater_assert_remote().deserializer(&m.msg);
+            match ::erased_serde::deserialize::<Box<#ty>>(&mut deserializer) {
                 Ok(msg) => {
                     let matches = match &mut (from, *msg) {
                         &mut #pat #guard => true,

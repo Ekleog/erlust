@@ -32,6 +32,9 @@ pub type LocalMessage = Box<MessageBox>; // TODO: (A) make MessageBox h:https://
 
 pub struct RemoteMessage {
     pub tag: String,
+
+    // Information on how to decode that is in the Theater of the Pid that's stored alongside this
+    // message in a ReceivedMessage.
     pub msg: Vec<u8>,
 }
 
