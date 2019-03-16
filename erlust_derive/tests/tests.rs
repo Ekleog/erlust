@@ -1,4 +1,4 @@
-#![feature(async_await, await_macro, futures_api, proc_macro_hygiene)]
+#![feature(async_await, await_macro, futures_api, proc_macro_hygiene, stmt_expr_attributes)]
 
 #[macro_use]
 extern crate erlust_derive;

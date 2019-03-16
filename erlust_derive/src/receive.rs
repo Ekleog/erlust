@@ -303,6 +303,7 @@ receive! {
 
     // TODO: (A) assert for each type it's a Message
     let res = quote! {
+        #[allow(unused_variables)]
         {
             #arms_def
 
