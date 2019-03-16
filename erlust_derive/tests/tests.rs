@@ -4,6 +4,8 @@
 extern crate erlust_derive;
 #[macro_use]
 extern crate serde_derive;
+#[macro_use]
+extern crate tokio;
 
 use erlust_derive::receive;
 
@@ -35,10 +37,10 @@ fn quux(x: usize) -> String {
     format!("{}", x)
 }
 
-// TODO: (B) this example is actually stupid, its name refers to the macro
+// TODO: (B) make this example actually test both sending and receiving
 #[test]
-fn non_stupid() {
-    async {
+fn passes_one_message() {
+    tokio::run_async(async {
         assert_eq!(
             "test",
             receive!(
@@ -47,7 +49,7 @@ fn non_stupid() {
                 Bar: (_pid, Bar(x)) if baz(*x) => quux(x),
             )
         );
-    };
+    });
 }
 
 #[derive(Deserialize, Message, Serialize)]
