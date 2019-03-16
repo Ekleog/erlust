@@ -44,7 +44,7 @@ fn non_stupid() {
             receive!(
                 Foo: (ref _pid, Foo(1, ref x)) if foo(x) => bar(x),
                 Foo: (_pid, Foo(2, x)) => foobar(x),
-                Bar: (ref _pid, Bar(x)) if baz(x) => quux(x),
+                Bar: (ref _pid, Bar(x)) if baz(*x) => quux(x),
             )
         );
     };
