@@ -26,7 +26,9 @@ where
         .expect("Called receive inside receive");;
 
     // First, attempt to find a message in waiting list
-    for i in 0..chan.waiting.len() {
+    // Use a temporary variable to work around https://github.com/rust-lang/rust/issues/59245
+    let l = chan.waiting.len();
+    for i in 0..l {
         // TODO: (C) consider unsafe here to remove the temp. var., dep. on benchmarks
         let mut msg = ReceivedMessage::Local((Pid::me(), Box::new(()) as LocalMessage));
         mem::swap(&mut msg, &mut chan.waiting[i]);
