@@ -60,7 +60,7 @@ fn gen_local_match(i: usize, ty: Type, pat: Pat, guard: TokenStream) -> TokenStr
     let arm_name = gen_arm_ident(i);
     quote! {
         if msg.as_any().is::<#ty>() {
-            msg = match msg.into_any().downcast::<#ty>() {
+            let msg = match msg.into_any().downcast::<#ty>() {
                 Ok(msg) => {
                     let matches = match &mut (from, *msg) {
                         &mut #pat #guard => true,
@@ -81,7 +81,7 @@ fn gen_remote_match(i: usize, ty: Type, pat: Pat, guard: TokenStream) -> TokenSt
     let arm_name = gen_arm_ident(i);
     quote! {
         if m.tag == <#ty as ::erlust::Message>::tag() {
-            let deserializer = from.__theater_assert_remote().deserializer(&m.msg);
+            let mut deserializer = from.__theater_assert_remote().deserializer(&m.msg);
             match ::erased_serde::deserialize::<Box<#ty>>(&mut deserializer) {
                 Ok(msg) => {
                     let matches = match &mut (from, *msg) {
