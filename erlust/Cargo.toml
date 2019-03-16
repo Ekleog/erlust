@@ -18,4 +18,4 @@ serde_derive = "1.0"
 
 [dependencies.futures-preview]
 git = "https://github.com/rust-lang-nursery/futures-rs"
-rev = "d040a57521ca09d7eb162840bfb084d90d72db03"
+rev = "c9490760b3f88850dd075d13579f059434732a83"

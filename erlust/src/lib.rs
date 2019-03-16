@@ -2,8 +2,7 @@
     arbitrary_self_types,
     async_await,
     await_macro,
-    futures_api,
-    pin
+    futures_api
 )]
 
 #[macro_use]

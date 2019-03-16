@@ -34,5 +34,5 @@ pub async fn inject(
     await!(sender.send((
         Pid::__remote(from, from_theater),
         Box::new(RemoteMessage { tag, msg }) as LocalMessage
-    )));
+    ))).unwrap(); // TODO: (A) do not panic if injection fails
 }

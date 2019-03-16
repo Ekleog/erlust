@@ -10,16 +10,16 @@ rec {
   rustOverlaySrc = hostPkgs.fetchFromGitHub {
     owner = "mozilla";
     repo = "nixpkgs-mozilla";
-    # The following is the latest version as of 2018-08-09
-    rev = "18186b9786bc72b7de124c3be6eb1e69d1c9acca";
-    sha256 = "09p0xa8syv0vjhpy0p4safcixy637zg7gln5gfw02jxaxb7nsbip";
+    # The following is the latest version as of 2019-03-16
+    rev = "cebceca52d54c3df371c2265903f008c7a72980b";
+    sha256 = "1vfib46ahbcnff0b7dmdmbpvc5yb0l3kl49y4h9191j4nix8z7af";
   };
   rustOverlay = import rustOverlaySrc;
   pkgs = import pkgsSrc {
     overlays = [ rustOverlay ];
   };
   rustNightlyChannel = pkgs.rustChannelOf {
-    date = "2018-10-02";
+    date = "2019-03-16";
     channel = "nightly";
   };
   #rustBetaChannel = pkgs.rustChannelOf {

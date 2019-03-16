@@ -69,6 +69,7 @@ pub trait Theater: Message + Clone {
     /// so serializing `self.here()` would most likely be a bad idea.
     // TODO: (B) return impl Trait h:impl-trait-in-trait
     // TODO: (A) make `tag` a `String`
+    // TODO: (A) `to` should be un-guessable, so that it acts as a capability
     fn send(
         &mut self,
         from: ActorId,
