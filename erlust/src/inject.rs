@@ -2,7 +2,7 @@
 
 use futures::SinkExt;
 
-use crate::{ActorId, LocalMessage, Pid, RemoteMessage, TheaterBox, LOCAL_SENDERS};
+use crate::{ActorId, Pid, ReceivedMessage, RemoteMessage, TheaterBox, LOCAL_SENDERS};
 
 /// Injects a message from another theater to a local actor
 ///
@@ -31,8 +31,10 @@ pub async fn inject(
 ) {
     // TODO: (A) do not panic if the local sender doesn't exist
     let mut sender = LOCAL_SENDERS.read().unwrap().get(to).unwrap();
-    await!(sender.send((
-        Pid::__remote(from, from_theater),
-        Box::new(RemoteMessage { tag, msg }) as LocalMessage
-    ))).unwrap(); // TODO: (A) do not panic if injection fails
+    await!(sender.send(
+        ReceivedMessage::Remote((
+            Pid::__remote(from, from_theater),
+            RemoteMessage { tag, msg },
+        ))
+    )).unwrap(); // TODO: (A) do not panic if injection fails
 }

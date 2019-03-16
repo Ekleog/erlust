@@ -28,7 +28,7 @@ where
     // First, attempt to find a message in waiting list
     for i in 0..chan.waiting.len() {
         // TODO: (C) consider unsafe here to remove the temp. var., dep. on benchmarks
-        let mut msg = (Pid::me(), Box::new(()) as LocalMessage);
+        let mut msg = ReceivedMessage::Local((Pid::me(), Box::new(()) as LocalMessage));
         mem::swap(&mut msg, &mut chan.waiting[i]);
         match await!(handle(msg)) {
             Use(ret) => {

@@ -4,7 +4,7 @@ use erased_serde::Serialize as ErasedSerdeSerialize;
 use futures::{SinkExt, TryFutureExt};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use crate::{ActorId, LocalMessage, LocalSender, Message, TheaterBox, HERE, MY_CHANNEL};
+use crate::{ActorId, LocalSender, Message, ReceivedMessage, TheaterBox, HERE, MY_CHANNEL};
 
 /// The address of an actor, used to send it messages
 pub struct Pid(PidImpl);
@@ -89,7 +89,7 @@ impl Pid {
         match self.0 {
             PidImpl::Local(ref mut l) => await!(
                 l.sender
-                    .send((Pid::me(), msg as LocalMessage))
+                    .send(ReceivedMessage::Local((Pid::me(), msg)))
                     .map_err(|e| e.into())
             ),
             PidImpl::Remote(ref mut r) => {
