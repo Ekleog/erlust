@@ -13,9 +13,20 @@ pub trait Message: 'static + Any + Send + serde::Serialize + for<'de> Deserializ
     fn tag() -> &'static str;
 }
 
-pub trait MessageBox: 'static + Any + Send + erased_serde::Serialize {}
+pub trait MessageBox: 'static + Any + Send + erased_serde::Serialize {
+    fn as_any(&self) -> &dyn Any;
+    fn into_any(self: Box<Self>) -> Box<dyn Any>;
+}
 
-impl<T: Message> MessageBox for T {}
+impl<T: Message> MessageBox for T {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn into_any(self: Box<Self>) -> Box<dyn Any> {
+        self
+    }
+}
 
 pub type LocalMessage = Box<MessageBox>; // TODO: (A) make MessageBox h:https://github.com/rust-lang-nursery/futures-rs/issues/1199
 
