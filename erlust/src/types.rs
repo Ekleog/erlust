@@ -46,7 +46,8 @@ pub enum ReceivedMessage {
 pub type LocalSender = mpsc::Sender<ReceivedMessage>;
 pub type LocalReceiver = mpsc::Receiver<ReceivedMessage>;
 
-impl Message for () { // TODO: (A) remove
+impl Message for () {
+    // TODO: (A) remove impl Message for ()
     fn tag() -> &'static str {
         "()"
     }

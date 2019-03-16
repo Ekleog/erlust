@@ -1,9 +1,4 @@
-#![feature(
-    arbitrary_self_types,
-    async_await,
-    await_macro,
-    futures_api
-)]
+#![feature(arbitrary_self_types, async_await, await_macro, futures_api)]
 
 #[macro_use]
 extern crate erased_serde;
@@ -41,7 +36,7 @@ pub use self::{
     receive::{receive, ReceiveResult},
     spawn::spawn,
     theater::Theater,
-    types::{LocalMessage, Message, RemoteMessage, ReceivedMessage},
+    types::{LocalMessage, Message, ReceivedMessage, RemoteMessage},
 };
 
 // TODO: (A) add a local registry to record name<->Pid associations?
