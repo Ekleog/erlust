@@ -62,7 +62,7 @@ fn gen_local_match(i: usize, ty: Type, pat: Pat, guard: TokenStream) -> TokenStr
         if msg.as_any().is::<#ty>() {
             msg = match msg.into_any().downcast::<#ty>() {
                 Ok(msg) => {
-                    let matches = match &(from, *msg) {
+                    let matches = match (&from, &*msg) {
                         #pat #guard => true,
                         _ => false,
                     };
@@ -84,7 +84,7 @@ fn gen_remote_match(i: usize, ty: Type, pat: Pat, guard: TokenStream) -> TokenSt
             let mut deserializer = from.__theater_assert_remote().deserializer(&m.msg);
             match ::erased_serde::deserialize::<Box<#ty>>(&mut deserializer) {
                 Ok(msg) => {
-                    let matches = match &(from, *msg) {
+                    let matches = match (&from, &*msg) {
                         #pat #guard => true,
                         _ => false,
                     };
