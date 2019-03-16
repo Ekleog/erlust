@@ -60,7 +60,7 @@ fn gen_local_match(i: usize, ty: Type, pat: Pat, guard: TokenStream) -> TokenStr
     let arm_name = gen_arm_ident(i);
     quote! {
         if msg.as_any().is::<#ty>() {
-            let msg = match msg.into_any().downcast::<#ty>() {
+            msg = match msg.into_any().downcast::<#ty>() {
                 Ok(msg) => {
                     let matches = match &(from, *msg) {
                         #pat #guard => true,
@@ -308,7 +308,7 @@ receive! {
 
             match await!(::erlust::receive(async move |mut msg: ::erlust::ReceivedMessage| {
                 match msg {
-                    ::erlust::ReceivedMessage::Local((from, msg)) => {
+                    ::erlust::ReceivedMessage::Local((from, mut msg)) => {
                         #(#local_matches)*
                         ::erlust::ReceiveResult::Skip(
                             ::erlust::ReceivedMessage::Local((from, msg))
