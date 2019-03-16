@@ -56,47 +56,51 @@ fn gen_arm_ident(i: usize) -> Ident {
     Ident::new(&format!("Arm{}", i), Span::call_site())
 }
 
-fn gen_inner_match(i: usize, ty: Type, pat: Pat, guard: TokenStream) -> TokenStream {
+fn gen_local_match(i: usize, ty: Type, pat: Pat, guard: TokenStream) -> TokenStream {
     let arm_name = gen_arm_ident(i);
     quote! {
-        msg = match (msg.0, msg.1.downcast::<#ty>()) {
-            (pid, Ok(msg)) => {
-                let matches = match &mut (pid, *msg) {
-                    &mut #pat #guard => true,
-                    _ => false,
-                };
-                if matches {
-                    return ::erlust::ReceiveResult::Use(MatchedArm::#arm_name((pid, msg)));
-                }
-                (pid, msg as Box<::std::any::Any>)
-            },
-            (pid, Err(msg)) => (pid, msg),
-        };
+        if msg.as_any().is::<#ty>() {
+            msg = match msg.into_any().downcast::<#ty>() {
+                Ok(msg) => {
+                    let matches = match &mut (from, *msg) {
+                        &mut #pat #guard => true,
+                        _ => false,
+                    };
+                    if matches {
+                        return ::erlust::ReceiveResult::Use(MatchedArm::#arm_name((from, msg)));
+                    }
+                    msg as ::erlust::LocalMessage
+                },
+                Err(msg) => unreachable!(), // TODO: (B) unreachable_unchecked()?
+            };
+        }
     }
 }
 
-fn gen_deserialize_match(i: usize, ty: Type, pat: Pat, guard: TokenStream) -> TokenStream {
+fn gen_remote_match(i: usize, ty: Type, pat: Pat, guard: TokenStream) -> TokenStream {
     let arm_name = gen_arm_ident(i);
     quote! {
-        match ::erased_serde::deserialize::<(String, Box<#ty>)>(pid.__theater_assert_remote().deserialize(&msg)) {
-            Ok((tag, msg)) if tag == <#ty as ::erlust::Message>::tag() => {
-                let matches = match &mut (pid, *msg) {
-                    &mut #pat #guard => true,
-                    _ => false,
-                };
-                if matches {
-                    return ::erlust::ReceiveResult::Use(MatchedArm::#arm_name((pid, msg)));
+        if m.tag == <#ty as ::erlust::Message>::tag() {
+            match ::erased_serde::deserialize::<Box<#ty>>(&m.msg) {
+                Ok(msg) => {
+                    let matches = match &mut (from, *msg) {
+                        &mut #pat #guard => true,
+                        _ => false,
+                    };
+                    if matches {
+                        return ::erlust::ReceiveResult::Use(MatchedArm::#arm_name((from, msg)));
+                    }
                 }
-            },
-            _ => (),
-        };
+                _ => (),
+            }
+        }
     }
 }
 
-fn gen_outer_match_arm(i: usize, pat: Pat, body: BlockOrExpr) -> TokenStream {
+fn gen_execute_match_arm(i: usize, pat: Pat, body: BlockOrExpr) -> TokenStream {
     let arm_name = gen_arm_ident(i);
     quote! {
-        MatchedArm::#arm_name((pid, msg)) => match (pid, *msg) {
+        MatchedArm::#arm_name((from, msg)) => match (from, *msg) {
             #pat => #body,
             _ => unreachable!() // TODO: (B) consider unreachable_unchecked
         },
@@ -107,13 +111,12 @@ fn gen_outer_match_arm(i: usize, pat: Pat, body: BlockOrExpr) -> TokenStream {
 
 // TODO: (A) make tuples and base types implement Message?
 // TODO: (B) think of the compatibility-with-old-messages story
-// TODO: (A) update example with receiving the Pid
 // Being given:
 //
 //  receive! {
-//      (usize, String): (1, ref x) if foo(x) => bar(x),
-//      (usize, String): (2, x) => foobar(x),
-//      usize: x if baz(x) => quux(x),
+//      (usize, String): (_pid, (1, ref x)) if foo(x) => bar(x),
+//      (usize, String): (_pid, (2, x)) => foobar(x),
+//      usize: (_pid, x) if baz(x) => quux(x),
 //  }
 //
 // With types:
@@ -126,112 +129,114 @@ fn gen_outer_match_arm(i: usize, pat: Pat, body: BlockOrExpr) -> TokenStream {
 // Expands to:
 //
 //  enum MatchedArm {
-//      Arm1(Box<(usize, String)>),
-//      Arm2(Box<(usize, String)>),
-//      Arm3(Box<usize>),
+//      Arm1((Pid, Box<(usize, String)>)),
+//      Arm2((Pid, Box<(usize, String)>)),
+//      Arm3((Pid, Box<usize>)),
 //  }
-//  match await!(receive(async move |mut msg: LocalMessage| {
-//      msg = match msg.downcast::<(usize, String)>() {
-//          Ok(res) => {
-//  [has match guard, thus cannot move, thus mutable borrow]
-//              let matches = match &mut *res {
-//                  &mut (1, ref x) if foo(x) => true,
-//                  _ => false,
-//              };
-//              if matches {
-//                  return Use(Arm1(res));
-//              }
-//              res as Box<Any>
-//          },
-//          Err(res) => res,
-//      };
-//      msg = match msg.downcast::<(usize, String)>() {
-//          Ok(res) => {
-//  [has no match guard, thus can move, but we can just ignore it here]
-//              let matches = match &*res {
-//                  &(2, _) => true,
-//                  _ => false,
-//              };
-//              if matches {
-//                  return Use(Arm2(res));
-//              }
-//              res as Box<Any>
-//          },
-//          Err(b) => b,
-//      };
-//      msg = match msg.downcast::<usize>() {
-//          Ok(res) => {
-//  [has a match guard, thus cannot move, thus mutable borrow]
-//              let matches = match &mut *res {
-//                  &mut x if baz(x) => true,
-//                  _ => false,
-//              };
-//              if matches {
-//                  return Use(Arm3(res));
-//              }
-//              res as Box<Any>
-//          },
-//          Err(b) => b,
-//      };
-//      match msg.downcast::<RemoteMessage>() {
-//          Ok(msg) => {
-//              match ::erased_serde::deserialize
-//                    ::<(String, Box<(usize, String)>)>(&msg) {
-//                  Ok((tag, msg))
-//                  if tag == <(usize, String) as Message>::tag() {
-//                      let matches = match &mut *msg {
+//  match await!(receive(async move |mut msg: ReceivedMessage| {
+//      match msg {
+//          ReceivedMessage::Local((from, msg)) => {
+//              msg = match msg.downcast::<(usize, String)>() {
+//                  Ok(res) => {
+//          [has match guard, thus cannot move, thus mutable borrow]
+//                      let matches = match &mut *res {
 //                          &mut (1, ref x) if foo(x) => true,
 //                          _ => false,
 //                      };
-//                      if (matches) {
-//                          return Use(Arm1(msg));
+//                      if matches {
+//                          return Use(Arm1((from, res)));
 //                      }
+//                      res as LocalMessage
 //                  },
-//                  _ => (),
+//                  Err(res) => res,
 //              };
-//              match ::erased_serde::deserialize
-//                    ::<(String, Box<(usize, String)>)>(&msg) {
-//                  Ok((tag, msg))
-//                  if tag == <(usize, String) as Message>::tag() {
-//                      let matches = match &mut *msg {
-//                          &mut (2, _) => true,
+//              msg = match msg.downcast::<(usize, String)>() {
+//                  Ok(res) => {
+//          [has no match guard, thus can move, but we can just ignore it here]
+//                      let matches = match &*res {
+//                          &(2, _) => true,
 //                          _ => false,
 //                      };
-//                      if (matches) {
-//                          return Use(Arm2(msg));
+//                      if matches {
+//                          return Use(Arm2((from, res)));
 //                      }
+//                      res as LocalMessage
 //                  },
-//                  _ => (),
+//                  Err(b) => b,
 //              };
-//              match ::erased_serde::deserialize
-//                    ::<(String, Box<usize>)>(&msg) {
-//                  Ok((tag, msg))
-//                  if tag == <usize as Message>::tag() {
-//                      let matches = match &mut *msg {
+//              msg = match msg.downcast::<usize>() {
+//                  Ok(res) => {
+//          [has a match guard, thus cannot move, thus mutable borrow]
+//                      let matches = match &mut *res {
 //                          &mut x if baz(x) => true,
 //                          _ => false,
 //                      };
-//                      if (matches) {
-//                          return Use(Arm3(msg));
+//                      if matches {
+//                          return Use(Arm3((from, res)));
 //                      }
+//                      res as LocalMessage
 //                  },
-//                  _ => (),
-//              }
-//              Skip(msg as LocalMessage)
+//                  Err(b) => b,
+//              };
+//              Skip(ReceivedMessage::Local((from, msg)))
 //          },
-//          Err(b) => Skip(b),
-//      };
+//          ReceivedMessage::Remote((from, m)) => {
+//              if m.tag == <(usize, String) as Message>::tag() {
+//                  match ::erased_serde::deserialize::<Box<(usize, String)>>(&m.msg) {
+//                      Ok(msg) => {
+//                          let matches = match &mut *msg {
+//                              &mut (1, ref x) if foo(x) => true,
+//                              _ => false,
+//                          };
+//                          if matches {
+//                              return Use(Arm1((from, msg)));
+//                          }
+//                      }
+//                      _ => (),
+//                  }
+//              }
+//              if m.tag == <(usize, String) as Message>::tag() {
+//                  match ::erased_serde::deserialize::<Box<(usize, String)>>(&m.msg) {
+//                      Ok(msg) => {
+//                          let matches = match &mut *msg {
+//                              &mut (2, _) => true,
+//                              _ => false,
+//                          };
+//                          if matches {
+//                              return Use(Arm2((from, msg)));
+//                          }
+//                      }
+//                      _ => (),
+//                  }
+//              }
+//              if m.tag == <usize as Message>::tag() {
+//                  match ::erased_serde::deserialize::<Box<usize>>(&m.msg) {
+//                      Ok(msg) => {
+//                          let matches = match &mut *msg {
+//                              &mut x if baz(x) => true,
+//                              _ => false,
+//                          };
+//                          if matches {
+//                              return Use(Arm3((from, msg)));
+//                          }
+//                      }
+//                      _ => (),
+//                  }
+//              }
+//              Skip(ReceivedMessage::Remote((from, m)))
+//          },
+//      }
 //  })) {
 //      Arm1(msg) => match *msg {
-//          (1, ref x) => bar(x),
+//          (_pid, (1, ref x)) => bar(x),
 //          _ => unreachable!(),
 //      },
 //      Arm2(msg) => match *msg {
-//          (2, x) => foobar(x),
+//          (_pid, (2, x)) => foobar(x),
 //          _ => unreachable!(),
 //      },
 //      Arm3(msg) => match *msg {
-//          x => quux(x),
+//          (_pid, x) => quux(x),
 //          _ => unreachable!(),
 //      },
 //  }
@@ -268,49 +273,55 @@ receive! {
     );
 
     // Generate the inner matches
-    let inner_matches = parsed.arms.iter().cloned().enumerate().map(|(i, arm)| {
+    let local_matches = parsed.arms.iter().cloned().enumerate().map(|(i, arm)| {
         if let Some(guard) = arm.guard {
-            gen_inner_match(i, arm.ty, arm.pat, quote!(if #guard))
+            gen_local_match(i, arm.ty, arm.pat, quote!(if #guard))
         } else {
             let ignoring_pat = fold_pat(&mut PatIgnorer(), arm.pat);
-            gen_inner_match(i, arm.ty, ignoring_pat, quote!())
+            gen_local_match(i, arm.ty, ignoring_pat, quote!())
         }
     });
 
     // Generate the deserialize-attempt matches
-    let deserialize_matches = parsed.arms.iter().cloned().enumerate().map(|(i, arm)| {
+    let remote_matches = parsed.arms.iter().cloned().enumerate().map(|(i, arm)| {
         if let Some(guard) = arm.guard {
-            gen_deserialize_match(i, arm.ty, arm.pat, quote!(if #guard))
+            gen_remote_match(i, arm.ty, arm.pat, quote!(if #guard))
         } else {
             let ignoring_pat = fold_pat(&mut PatIgnorer(), arm.pat);
-            gen_deserialize_match(i, arm.ty, ignoring_pat, quote!())
+            gen_remote_match(i, arm.ty, ignoring_pat, quote!())
         }
     });
 
     // Generate the outer match's arms
-    let outer_match_arms = parsed
+    let execute_match_arms = parsed
         .arms
         .iter()
         .cloned()
         .enumerate()
-        .map(|(i, arm)| gen_outer_match_arm(i, arm.pat, arm.body));
+        .map(|(i, arm)| gen_execute_match_arm(i, arm.pat, arm.body));
 
     // TODO: (A) assert for each type it's a Message
     let res = quote! {
         {
             #arms_def
 
-            match await!(::erlust::receive(async move |mut msg| {
-                #(#inner_matches)*
-                match (msg.0, msg.1.downcast::<::erlust::RemoteMessage>()) {
-                    (pid, Ok(msg)) => {
-                        #(#deserialize_matches)*
-                        ::erlust::ReceiveResult::Skip((pid, msg))
-                    },
-                    (pid, Err(msg)) => ::erlust::ReceiveResult::Skip((pid, msg)),
+            match await!(::erlust::receive(async move |mut msg: ::erlust::ReceivedMessage| {
+                match msg {
+                    ::erlust::ReceivedMessage::Local((from, msg)) => {
+                        #(#local_matches)*
+                        ::erlust::ReceiveResult::Skip(
+                            ::erlust::ReceivedMessage::Local((from, msg))
+                        )
+                    }
+                    ::erlust::ReceivedMessage::Remote((from, m)) => {
+                        #(#remote_matches)*
+                        ::erlust::ReceiveResult::Skip(
+                            ::erlust::ReceivedMessage::Remote((from, m))
+                        )
+                    }
                 }
             })) {
-                #(#outer_match_arms)*
+                #(#execute_match_arms)*
             }
         }
     };

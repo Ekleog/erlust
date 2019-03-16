@@ -7,6 +7,14 @@ extern crate serde_derive;
 
 use erlust_derive::receive;
 
+#[derive(Deserialize, Message, Serialize)]
+#[erlust_tag = "foo"]
+struct Foo(usize, String);
+
+#[derive(Deserialize, Message, Serialize)]
+#[erlust_tag = "bar"]
+struct Bar(usize);
+
 fn foo(_: &String) -> bool {
     false
 }
@@ -34,9 +42,9 @@ fn non_stupid() {
         assert_eq!(
             "test",
             receive!(
-                (usize, String): (_pid, (1, ref x)) if foo(x) => bar(x),
-                (usize, String): (_pid, (2, x)) => foobar(x),
-                usize: (_pid, x) if baz(x) => quux(x),
+                Foo: (_pid, Foo(1, ref x)) if foo(x) => bar(x),
+                Foo: (_pid, Foo(2, x)) => foobar(x),
+                Bar: (_pid, Bar(x)) if baz(x) => quux(x),
             )
         );
     };
