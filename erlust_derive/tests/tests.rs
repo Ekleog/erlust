@@ -1,4 +1,10 @@
-#![feature(async_await, await_macro, futures_api, proc_macro_hygiene, stmt_expr_attributes)]
+#![feature(
+    async_await,
+    await_macro,
+    futures_api,
+    proc_macro_hygiene,
+    stmt_expr_attributes
+)]
 
 #[macro_use]
 extern crate erlust_derive;
@@ -40,16 +46,18 @@ fn quux(x: usize) -> String {
 // TODO: (B) make this example actually test both sending and receiving
 #[test]
 fn passes_one_message() {
-    tokio::run_async(async {
-        assert_eq!(
-            "test",
-            receive!(
-                Foo: (_pid, Foo(1, x)) if foo(x) => bar(x),
-                Foo: (_pid, Foo(2, x)) => foobar(x),
-                Bar: (_pid, Bar(x)) if baz(*x) => quux(x),
-            )
-        );
-    });
+    tokio::run_async(
+        async {
+            assert_eq!(
+                "test",
+                receive!(
+                    Foo: (_pid, Foo(1, x)) if foo(x) => bar(x),
+                    Foo: (_pid, Foo(2, x)) => foobar(x),
+                    Bar: (_pid, Bar(x)) if baz(*x) => quux(x),
+                )
+            );
+        },
+    );
 }
 
 #[derive(Deserialize, Message, Serialize)]
