@@ -3,16 +3,16 @@ rec {
   pkgsSrc = hostPkgs.fetchFromGitHub {
     owner = "NixOS";
     repo = "nixpkgs";
-    # The following is for nixos-unstable on 2018-08-09
-    rev = "2428f5dda13475afba2dee93f4beb2bd97086930";
-    sha256 = "1iwl5yaz36lf7v4hps3z9dl3zyq363jmr5m7y4anf0lpn4lczh18";
+    # The following is for nixos-unstable as of 2020-04-04
+    rev = "ae6bdcc53584aaf20211ce1814bea97ece08a248";
+    sha256 = "0hjhznns1cxgl3hww2d5si6vhy36pnm53hms9h338v6r633dcy77";
   };
   rustOverlaySrc = hostPkgs.fetchFromGitHub {
     owner = "mozilla";
     repo = "nixpkgs-mozilla";
-    # The following is the latest version as of 2019-03-16
-    rev = "cebceca52d54c3df371c2265903f008c7a72980b";
-    sha256 = "1vfib46ahbcnff0b7dmdmbpvc5yb0l3kl49y4h9191j4nix8z7af";
+    # The following is the latest version as of 2020-04-04
+    rev = "e912ed483e980dfb4666ae0ed17845c4220e5e7c";
+    sha256 = "08fvzb8w80bkkabc1iyhzd15f4sm7ra10jn32kfch5klgl0gj3j3";
   };
   rustOverlay = import rustOverlaySrc;
   pkgs = import pkgsSrc {
@@ -21,6 +21,7 @@ rec {
   rustNightlyChannel = pkgs.rustChannelOf {
     date = "2019-03-16";
     channel = "nightly";
+    sha256 = "1ia8kpdd26wi23xarih2wb0ppv61irb1qqbh34xzl7zi15j83xwh";
   };
   #rustBetaChannel = pkgs.rustChannelOf {
   #  date = "2018-04-20";
