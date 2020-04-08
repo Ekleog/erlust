@@ -14,7 +14,7 @@ proc-macro = true
 
 [dependencies]
 proc-macro2 = { version = "0.4", features = [ "nightly" ] }
-quote = "0.6"
+quote = "1.0"
 syn = { version = "0.14", features = [ "extra-traits", "fold", "full" ] }
 # TODO: (B) remove extra-traits
 
