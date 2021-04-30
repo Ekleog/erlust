@@ -1,5 +1,3 @@
-#![feature(arbitrary_self_types, async_await, await_macro, futures_api)]
-
 #[macro_use]
 extern crate erased_serde;
 extern crate failure;

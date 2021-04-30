@@ -23,7 +23,7 @@ where
     // and `__receive` cannot be called inside `__receive`.
     let mut chan = MY_CHANNEL
         .with(|c| c.borrow_mut().take())
-        .expect("Called receive inside receive");;
+        .expect("Called receive inside receive");
 
     // First, attempt to find a message in waiting list
     // Use a temporary variable to work around https://github.com/rust-lang/rust/issues/59245
@@ -32,7 +32,7 @@ where
         // TODO: (C) consider unsafe here to remove the temp. var., dep. on benchmarks
         let mut msg = ReceivedMessage::Local((Pid::me(), Box::new(()) as LocalMessage));
         mem::swap(&mut msg, &mut chan.waiting[i]);
-        match await!(handle(msg)) {
+        match handle(msg).await {
             Use(ret) => {
                 chan.waiting.remove(i);
                 MY_CHANNEL.with(|c| *c.borrow_mut() = Some(chan));
@@ -51,8 +51,12 @@ where
         // have been dropped. Except we always keep a `Sender` alive in the
         // `LOCAL_SENDERS` map, and `__receive` should not be able to be called
         // once the actor has been dropped, so this should be safe.
-        let msg = await!(chan.receiver.next()).expect("Called receive after the actor was dropped");
-        match await!(handle(msg)) {
+        let msg = chan
+            .receiver
+            .next()
+            .await
+            .expect("Called receive after the actor was dropped");
+        match handle(msg).await {
             Use(ret) => {
                 MY_CHANNEL.with(|c| *c.borrow_mut() = Some(chan));
                 return ret;

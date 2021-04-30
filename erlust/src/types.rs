@@ -28,7 +28,7 @@ impl<T: Message> MessageBox for T {
     }
 }
 
-pub type LocalMessage = Box<MessageBox>; // TODO: (A) make MessageBox h:https://github.com/rust-lang-nursery/futures-rs/issues/1199
+pub type LocalMessage = Box<dyn MessageBox>; // TODO: (A) make MessageBox h:https://github.com/rust-lang-nursery/futures-rs/issues/1199
 
 pub struct RemoteMessage {
     pub tag: String,

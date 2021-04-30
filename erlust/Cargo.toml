@@ -12,10 +12,7 @@ description = "Erlang-like actor system for Rust"
 [dependencies]
 erased-serde = "0.3"
 failure = "0.1"
+futures = "0.3.14"
 lazy_static = "1.1"
 serde = "1.0"
 serde_derive = "1.0"
-
-[dependencies.futures-preview]
-git = "https://github.com/rust-lang-nursery/futures-rs"
-rev = "c9490760b3f88850dd075d13579f059434732a83"

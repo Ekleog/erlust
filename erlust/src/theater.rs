@@ -48,7 +48,7 @@ pub trait Theater: Message + Clone {
     ///
     /// `out` will be passed to [`send`] after serialization of said message.
     // TODO: (B) return associated type?
-    fn serializer(&mut self, out: &mut Vec<u8>) -> Box<Serializer>;
+    fn serializer(&mut self, out: &mut Vec<u8>) -> Box<dyn Serializer>;
 
     /// Returns a deserializer to be used for deserializing the `msg` argument
     /// from [`inject`]
@@ -56,7 +56,7 @@ pub trait Theater: Message + Clone {
     /// Usually, this will be the operation opposite to the one [`serializer`]
     /// performed.
     // TODO: (B) return associated type?
-    fn deserializer<'de>(&mut self, inp: &'de Vec<u8>) -> Box<Deserializer<'de>>;
+    fn deserializer<'de>(&mut self, inp: &'de Vec<u8>) -> Box<dyn Deserializer<'de>>;
 
     /// Send a message to `self`
     ///
@@ -94,17 +94,17 @@ pub trait TheaterBox: MessageBox {
     /// (ie. into a trait object)
     fn deserialize_as_self(
         &self,
-        inp: &mut Deserializer,
-    ) -> Result<Box<TheaterBox>, erased_serde::Error>;
+        inp: &mut dyn Deserializer,
+    ) -> Result<Box<dyn TheaterBox>, erased_serde::Error>;
 
     /// See [`Theater::sees_as`]
     fn sees_as(&mut self, other: Box<dyn TheaterBox>) -> Box<dyn TheaterBox>;
 
     /// See [`Theater::serializer`]
-    fn serializer(&mut self, out: &mut Vec<u8>) -> Box<Serializer>;
+    fn serializer(&mut self, out: &mut Vec<u8>) -> Box<dyn Serializer>;
 
     /// See [`Theater::deserializer`]
-    fn deserializer<'de>(&mut self, inp: &'de Vec<u8>) -> Box<Deserializer<'de>>;
+    fn deserializer<'de>(&mut self, inp: &'de Vec<u8>) -> Box<dyn Deserializer<'de>>;
 
     /// See [`Theater::send`]
     fn send(
@@ -122,11 +122,11 @@ thread_local! {
     ///
     /// This is designed to handle correctly cases of communicating protocols with a gateway that handles multiple
     /// protocols, and thus has a different address on each protocol.
-    pub static HERE: RefCell<Option<Box<TheaterBox>>> = RefCell::new(None);
+    pub static HERE: RefCell<Option<Box<dyn TheaterBox>>> = RefCell::new(None);
 }
 
 impl<T: Theater> TheaterBox for T {
-    fn here(&mut self) -> Box<TheaterBox> {
+    fn here(&mut self) -> Box<dyn TheaterBox> {
         <Self as Theater>::here(self)
     }
 
@@ -136,20 +136,20 @@ impl<T: Theater> TheaterBox for T {
 
     fn deserialize_as_self(
         &self,
-        inp: &mut Deserializer,
-    ) -> Result<Box<TheaterBox>, erased_serde::Error> {
-        erased_serde::deserialize::<Box<Self>>(inp).map(|t| t as Box<TheaterBox>)
+        inp: &mut dyn Deserializer,
+    ) -> Result<Box<dyn TheaterBox>, erased_serde::Error> {
+        erased_serde::deserialize::<Box<Self>>(inp).map(|t| t as Box<dyn TheaterBox>)
     }
 
     fn sees_as(&mut self, o: Box<dyn TheaterBox>) -> Box<dyn TheaterBox> {
         <Self as Theater>::sees_as(self, o)
     }
 
-    fn serializer(&mut self, out: &mut Vec<u8>) -> Box<Serializer> {
+    fn serializer(&mut self, out: &mut Vec<u8>) -> Box<dyn Serializer> {
         <Self as Theater>::serializer(self, out)
     }
 
-    fn deserializer<'de>(&mut self, inp: &'de Vec<u8>) -> Box<Deserializer<'de>> {
+    fn deserializer<'de>(&mut self, inp: &'de Vec<u8>) -> Box<dyn Deserializer<'de>> {
         <Self as Theater>::deserializer(self, inp)
     }
 
@@ -171,7 +171,7 @@ impl<'de> serde::Deserialize<'de> for Box<dyn TheaterBox> {
     where
         D: serde::Deserializer<'de>,
     {
-        let mut d = erased_serde::Deserializer::erase(deserializer);
+        let mut d = <dyn erased_serde::Deserializer>::erase(deserializer);
         HERE.with(|h| {
             h.borrow()
                 .as_ref()

@@ -87,10 +87,12 @@ impl Pid {
     // TODO: (B) either replace failure::Error by a better type or document why not
     pub async fn send<M: Message>(&mut self, msg: Box<M>) -> Result<(), failure::Error> {
         match self.0 {
-            PidImpl::Local(ref mut l) => await!(l
-                .sender
-                .send(ReceivedMessage::Local((Pid::me(), msg)))
-                .map_err(|e| e.into())),
+            PidImpl::Local(ref mut l) => {
+                l.sender
+                    .send(ReceivedMessage::Local((Pid::me(), msg)))
+                    .map_err(|e| e.into())
+                    .await
+            }
             PidImpl::Remote(ref mut r) => {
                 // TODO: (B) have the theater-provided serializer asyncly send on-the-fly?
                 // Note: if erased_serialize can yield, will have to replace the thread_local
@@ -103,7 +105,9 @@ impl Pid {
                     *here.borrow_mut() = None;
                     Ok(())
                 })?;
-                await!(r.theater.send(my_actor_id(), r.actor_id, M::tag(), vec))
+                r.theater
+                    .send(my_actor_id(), r.actor_id, M::tag(), vec)
+                    .await
             }
         }
     }

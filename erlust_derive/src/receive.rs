@@ -322,7 +322,7 @@ receive! {
         {
             #arms_def
 
-            match await!(::erlust::receive(async move |mut msg: ::erlust::ReceivedMessage| {
+            match ::erlust::receive(async move |mut msg: ::erlust::ReceivedMessage| {
                 match msg {
                     ::erlust::ReceivedMessage::Local((from, mut msg)) => {
                         #(#local_matches)*
@@ -337,7 +337,7 @@ receive! {
                         )
                     }
                 }
-            })) {
+            }).await {
                 #(#execute_match_arms)*
             }
         }

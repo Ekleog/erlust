@@ -31,9 +31,11 @@ pub async fn inject(
 ) {
     // TODO: (A) do not panic if the local sender doesn't exist
     let mut sender = LOCAL_SENDERS.read().unwrap().get(to).unwrap();
-    await!(sender.send(ReceivedMessage::Remote((
-        Pid::__remote(from, from_theater),
-        RemoteMessage { tag, msg },
-    ))))
-    .unwrap(); // TODO: (A) do not panic if injection fails
+    sender
+        .send(ReceivedMessage::Remote((
+            Pid::__remote(from, from_theater),
+            RemoteMessage { tag, msg },
+        )))
+        .await
+        .unwrap(); // TODO: (A) do not panic if injection fails
 }

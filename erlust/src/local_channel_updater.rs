@@ -1,5 +1,8 @@
-use futures::{task, Future, Poll};
-use std::pin::Pin;
+use std::{
+    future::Future,
+    pin::Pin,
+    task::{self, Poll},
+};
 
 use crate::{LocalChannel, MY_CHANNEL};
 
@@ -20,7 +23,7 @@ impl<Fut: Future<Output = ()>> LocalChannelUpdater<Fut> {
 impl<Fut: Future<Output = ()>> Future for LocalChannelUpdater<Fut> {
     type Output = ();
 
-    fn poll(self: Pin<&mut Self>, lw: &task::Waker) -> Poll<Self::Output> {
+    fn poll(self: Pin<&mut Self>, lw: &mut task::Context) -> Poll<Self::Output> {
         MY_CHANNEL.with(|my_channel| {
             // TODO: (B) Check this unsafe is actually safe and comment here on why
             // TODO: (B) Use scoped-tls?
