@@ -1,5 +1,9 @@
 use proc_macro2::{Ident, Span, TokenStream};
-use syn::{fold::fold_pat, synom::Synom, Block, Expr, Pat, Type};
+use syn::{
+    fold::fold_pat,
+    parse::{Parse, ParseStream},
+    Expr, Pat, Type,
+};
 
 use crate::{block_or_expr::BlockOrExpr, pat_ignorer::PatIgnorer};
 
@@ -11,44 +15,55 @@ struct ReceiveArm {
     body:  BlockOrExpr,
 }
 
-impl Synom for ReceiveArm {
-    named!(parse -> Self, do_parse!(
-        ty: syn!(Type) >>
-        punct!(:) >>
-        pat: syn!(Pat) >>
-        guard: option!(
-            do_parse!(
-                keyword!(if) >>
-                g: syn!(Expr) >>
-                (g)
-            )
-        ) >>
-        punct!(=>) >>
-        body: alt!(
-            do_parse!(
-                b: syn!(Block) >>
-                option!(punct!(,)) >>
-                (BlockOrExpr::Block(b))
-            ) |
-            do_parse!(
-                e: syn!(Expr) >>
-                punct!(,) >>
-                (BlockOrExpr::Expr(e))
-            )
-        ) >>
-        (ReceiveArm { ty, pat, guard, body })
-    ));
+impl Parse for ReceiveArm {
+    fn parse(input: ParseStream) -> syn::parse::Result<Self> {
+        // type: pattern
+        let ty = input.parse()?;
+        let _: Token![:] = input.parse()?;
+        let pat = input.parse()?;
+
+        // [if foo]
+        let guard = if input.peek(Token![if]) {
+            let _: Token![if] = input.parse()?;
+            Some(input.parse()?)
+        } else {
+            None
+        };
+
+        // => body
+        let _: Token![=>] = input.parse()?;
+        let body = if input.peek(syn::token::Brace) {
+            let res = input.parse()?;
+            if input.peek(Token![,]) {
+                let _: Token![,] = input.parse()?;
+            }
+            BlockOrExpr::Block(res)
+        } else {
+            let res = input.parse()?;
+            let _: Token![,] = input.parse()?;
+            BlockOrExpr::Expr(res)
+        };
+        Ok(ReceiveArm {
+            ty,
+            pat,
+            guard,
+            body,
+        })
+    }
 }
 
 struct Receive {
     arms: Vec<ReceiveArm>,
 }
 
-impl Synom for Receive {
-    named!(parse -> Self, do_parse!(
-        arms: many0!(syn!(ReceiveArm)) >>
-        (Receive { arms })
-    ));
+impl Parse for Receive {
+    fn parse(input: ParseStream) -> syn::parse::Result<Self> {
+        let mut arms = Vec::new();
+        while !input.is_empty() {
+            arms.push(input.parse()?);
+        }
+        Ok(Receive { arms })
+    }
 }
 
 fn gen_arm_ident(i: usize) -> Ident {

@@ -1,5 +1,4 @@
-use proc_macro2::Span;
-use syn::{fold::Fold, token::Underscore, Pat, PatWild};
+use syn::{fold::Fold, Pat, PatWild};
 
 // Transforms all potential moves into _ ignorers
 pub struct PatIgnorer();
@@ -11,7 +10,8 @@ impl Fold for PatIgnorer {
             Ident(p) => match p.subpat {
                 Some((_at, subpat)) => self.fold_pat(*subpat),
                 None => Wild(PatWild {
-                    underscore_token: Underscore::new(Span::call_site()),
+                    attrs: Vec::new(),
+                    underscore_token: Default::default(),
                 }),
             },
             p => p,

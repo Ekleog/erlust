@@ -6,8 +6,8 @@ pub fn derive_message(input: TokenStream) -> TokenStream {
 
     let mut tag = None;
     for attr in s.attrs {
-        if let Some(Meta::NameValue(m)) = attr.interpret_meta() {
-            if m.ident == "erlust_tag" {
+        if let Ok(Meta::NameValue(m)) = attr.parse_meta() {
+            if m.path == syn::parse_str("erlust_tag").unwrap() {
                 if tag.is_some() {
                     attr.span()
                         .unstable()

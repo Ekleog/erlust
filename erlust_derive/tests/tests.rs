@@ -50,11 +50,11 @@ fn passes_one_message() {
         async {
             assert_eq!(
                 "test",
-                receive!(
-                    Foo: (_pid, Foo(1, x)) if foo(x) => bar(x),
-                    Foo: (_pid, Foo(2, x)) => foobar(x),
-                    Bar: (_pid, Bar(x)) if baz(*x) => quux(x),
-                )
+                receive! {
+                    Foo: (_pid, Foo(1, x)) if foo(x) =>{ bar(x)},
+                    Foo: (_pid, Foo(2, x)) => {foobar(x)},
+                    Bar: (_pid, Bar(x)) if baz(*x) => {quux(x)},
+                }
             );
         },
     );
